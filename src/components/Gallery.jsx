@@ -1,10 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { Image, Upload, X, Trash2, Heart } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-import { useAuth } from '../context/AuthContext'
 
 export default function Gallery() {
-  const { user } = useAuth()
   const [photos, setPhotos] = useState([])
   const [selected, setSelected] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -35,16 +33,14 @@ export default function Gallery() {
     if (!file) return
     setUploading(true)
     const ext = file.name.split('.').pop()
-    const path = `${user.id}/${Date.now()}.${ext}`
+    const path = `${Date.now()}.${ext}`
 
     const { error: uploadErr } = await supabase.storage
       .from('photos')
       .upload(path, file)
     if (uploadErr) { setUploading(false); return }
 
-    const url = supabase.storage.from('photos').getPublicUrl(path).data.publicUrl
     await supabase.from('photos').insert({
-      user_id: user.id,
       storage_path: path,
       caption: '',
     })

@@ -1,7 +1,6 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { Heart, MessageCircle, Image, MapPin, PenLine, Gamepad2, LogOut, Menu, X } from 'lucide-react'
+import { NavLink, Outlet } from 'react-router-dom'
+import { Heart, MessageCircle, Image, MapPin, PenLine, Gamepad2, Menu, X } from 'lucide-react'
 import { useState } from 'react'
-import { supabase } from '../lib/supabase'
 
 const links = [
   { to: '/', icon: Heart, label: 'Accueil' },
@@ -14,16 +13,9 @@ const links = [
 
 export default function Layout() {
   const [menuOpen, setMenuOpen] = useState(false)
-  const navigate = useNavigate()
-
-  async function handleLogout() {
-    await supabase.auth.signOut()
-    navigate('/login')
-  }
 
   return (
     <div className="app-layout">
-      {/* Sidebar desktop */}
       <aside className="sidebar">
         <div className="sidebar-brand">
           <Heart size={28} className="sidebar-icon" />
@@ -37,13 +29,8 @@ export default function Layout() {
             </NavLink>
           ))}
         </nav>
-        <button className="nav-item logout-btn" onClick={handleLogout}>
-          <LogOut size={20} />
-          <span>Quitter</span>
-        </button>
       </aside>
 
-      {/* Mobile header */}
       <header className="mobile-header">
         <button onClick={() => setMenuOpen(true)} className="menu-btn">
           <Menu size={24} />
@@ -52,7 +39,6 @@ export default function Layout() {
         <div style={{ width: 40 }} />
       </header>
 
-      {/* Mobile drawer */}
       {menuOpen && (
         <div className="drawer-overlay" onClick={() => setMenuOpen(false)}>
           <div className="drawer" onClick={e => e.stopPropagation()}>
@@ -68,16 +54,11 @@ export default function Layout() {
                   <span>{l.label}</span>
                 </NavLink>
               ))}
-              <button className="drawer-item logout-btn" onClick={handleLogout}>
-                <LogOut size={20} />
-                <span>Quitter</span>
-              </button>
             </nav>
           </div>
         </div>
       )}
 
-      {/* Bottom nav mobile */}
       <nav className="bottom-nav">
         {links.map(l => (
           <NavLink key={l.to} to={l.to} className={({ isActive }) => isActive ? 'bottom-item active' : 'bottom-item'}>
@@ -87,7 +68,6 @@ export default function Layout() {
         ))}
       </nav>
 
-      {/* Main content */}
       <main className="main-content">
         <Outlet />
       </main>

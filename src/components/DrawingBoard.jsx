@@ -1,12 +1,10 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
-import { PenLine, Trash2, Download, Save, Palette, Minus, Plus } from 'lucide-react'
+import { PenLine, Trash2, Download, Save, Minus, Plus } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-import { useAuth } from '../context/AuthContext'
 
 const COLORS = ['#e25555', '#ff6b6b', '#ffa07a', '#ffd700', '#98fb98', '#60a5fa', '#c084fc', '#2d2d2d']
 
 export default function DrawingBoard() {
-  const { user } = useAuth()
   const canvasRef = useRef(null)
   const [isDrawing, setIsDrawing] = useState(false)
   const [color, setColor] = useState('#e25555')
@@ -71,7 +69,7 @@ export default function DrawingBoard() {
 
   async function saveDrawing() {
     const dataUrl = canvasRef.current.toDataURL()
-    await supabase.from('drawings').insert({ user_id: user.id, data_url: dataUrl })
+    await supabase.from('drawings').insert({ data_url: dataUrl })
     loadDrawings()
   }
 

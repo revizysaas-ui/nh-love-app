@@ -388,6 +388,7 @@ body {
   border-top: 1px solid #f0f0f0;
   background: var(--card);
 }
+.msg-author-input { max-width: 120px; }
 .msg-input-bar input {
   flex: 1;
   padding: 10px 16px;

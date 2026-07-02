@@ -16,7 +16,7 @@ export default function Login() {
     setLoading(true)
     const fn = isSignUp ? supabase.auth.signUp : supabase.auth.signInWithPassword
     const { error: err } = await fn({ email, password })
-    if (err) setError(err.message)
+    if (err) setError(JSON.stringify(err))
     setLoading(false)
   }
 

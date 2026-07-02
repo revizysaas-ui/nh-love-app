@@ -1,0 +1,68 @@
+import { useEffect, useState } from 'react'
+import { Heart, Calendar, MapPin, MessageCircle, Image, PenLine, Gamepad2, Sparkles } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { DATES } from '../config'
+
+const cards = [
+  { to: '/messages', icon: MessageCircle, label: 'Messages', desc: 'Boîte aux lettres', color: '#ff6b9d' },
+  { to: '/galerie', icon: Image, label: 'Galerie', desc: 'Nos souvenirs', color: '#c084fc' },
+  { to: '/carte', icon: MapPin, label: 'Carte', desc: 'La distance', color: '#60a5fa' },
+  { to: '/dessin', icon: PenLine, label: 'Dessin', desc: 'Dessine-moi', color: '#34d399' },
+  { to: '/jeux', icon: Gamepad2, label: 'Jeux', desc: 'Vérité ou action', color: '#f472b6' },
+]
+
+export default function Home() {
+  const navigate = useNavigate()
+  const [days, setDays] = useState(0)
+  const [untilDays, setUntilDays] = useState(0)
+
+  useEffect(() => {
+    const start = new Date(DATES.start)
+    const meeting = new Date(DATES.nextMeeting)
+    const now = new Date()
+    setDays(Math.floor((now - start) / (1000 * 60 * 60 * 24)))
+    setUntilDays(Math.floor((meeting - now) / (1000 * 60 * 60 * 24)))
+  }, [])
+
+  return (
+    <div className="home-page">
+      <div className="hero-section">
+        <div className="hero-badge">
+          <Sparkles size={14} />
+          <span>Notre histoire</span>
+        </div>
+        <h1 className="hero-title">
+          <Heart size={32} className="hero-heart" fill="#e25555" />
+          <span>N&H</span>
+        </h1>
+        <div className="hero-counters">
+          <div className="hero-stat">
+            <span className="hero-num">{days}</span>
+            <span className="hero-label">Jours d&apos;amour</span>
+          </div>
+          <div className="hero-divider" />
+          <div className="hero-stat">
+            <span className="hero-num">{untilDays > 0 ? untilDays : 0}</span>
+            <span className="hero-label">Avant les retrouvailles</span>
+          </div>
+        </div>
+        <div className="hero-date">
+          <Calendar size={14} />
+          <span>Depuis le {DATES.start}</span>
+        </div>
+      </div>
+
+      <div className="quick-grid">
+        {cards.map(c => (
+          <button key={c.to} className="quick-card" style={{ '--accent': c.color }} onClick={() => navigate(c.to)}>
+            <div className="quick-icon"><c.icon size={24} /></div>
+            <div className="quick-info">
+              <strong>{c.label}</strong>
+              <span>{c.desc}</span>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}

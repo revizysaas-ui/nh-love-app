@@ -102,11 +102,10 @@ export default function Gallery() {
       <div className="page-header">
         <Image size={24} />
         <h2>Notre Galerie</h2>
-        <button className="btn btn-sm" onClick={() => fileRef.current?.click()} disabled={uploading}>
-          <Camera size={16} />
-          {uploading ? '...' : 'Photo'}
+        <button className="btn-icon" onClick={() => fileRef.current?.click()} disabled={uploading}>
+          <Camera size={20} />
         </button>
-        <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={uploadPhoto} hidden />
+        <input ref={fileRef} type="file" accept="image/*" onChange={uploadPhoto} hidden />
       </div>
 
       {loading ? (

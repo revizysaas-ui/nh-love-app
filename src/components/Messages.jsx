@@ -123,10 +123,10 @@ export default function Messages() {
       </div>
 
       <form className="msg-input-bar" onSubmit={sendMessage}>
-        <button type="button" className="btn btn-sm" style={{ background: 'var(--secondary)', color: 'var(--foreground)', flexShrink: 0 }} onClick={() => fileRef.current?.click()} disabled={uploading}>
-          <Camera size={16} /> Photo
+        <button type="button" className="btn-icon msg-photo-btn" onClick={() => fileRef.current?.click()} disabled={uploading}>
+          <Camera size={20} />
         </button>
-        <input type="file" ref={fileRef} accept="image/*" capture="environment" style={{ display: 'none' }} onChange={handleFile} />
+        <input type="file" ref={fileRef} accept="image/*" style={{ display: 'none' }} onChange={handleFile} />
         <input
           placeholder="Écris un message..."
           value={text}

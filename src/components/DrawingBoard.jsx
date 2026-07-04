@@ -17,9 +17,11 @@ export default function DrawingBoard() {
 
   const getPos = useCallback((e) => {
     const rect = canvasRef.current.getBoundingClientRect()
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY
     return {
-      x: (e.clientX - rect.left) * (canvasRef.current.width / rect.width),
-      y: (e.clientY - rect.top) * (canvasRef.current.height / rect.height),
+      x: (clientX - rect.left) * (canvasRef.current.width / rect.width),
+      y: (clientY - rect.top) * (canvasRef.current.height / rect.height),
     }
   }, [])
 
@@ -40,6 +42,7 @@ export default function DrawingBoard() {
   }
 
   function startDraw(e) {
+    e.preventDefault()
     const pos = getPos(e)
     const ctx = canvasRef.current.getContext('2d')
     ctx.beginPath()
@@ -49,6 +52,7 @@ export default function DrawingBoard() {
   }
 
   function draw(e) {
+    e.preventDefault()
     if (!isDrawing) return
     const pos = getPos(e)
     const ctx = canvasRef.current.getContext('2d')
@@ -63,7 +67,8 @@ export default function DrawingBoard() {
     lastPoint.current = pos
   }
 
-  function stopDraw() {
+  function stopDraw(e) {
+    if (e) e.preventDefault()
     setIsDrawing(false)
     lastPoint.current = null
   }
@@ -136,6 +141,9 @@ export default function DrawingBoard() {
           onMouseMove={draw}
           onMouseUp={stopDraw}
           onMouseLeave={stopDraw}
+          onTouchStart={startDraw}
+          onTouchMove={draw}
+          onTouchEnd={stopDraw}
         />
       </div>
 

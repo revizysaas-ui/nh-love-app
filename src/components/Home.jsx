@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Heart, Calendar, MapPin, MessageCircle, Image, PenLine, Gamepad2, Sparkles, MessageCircleQuestion } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useRoom } from '../context/RoomContext'
-import DAILY_QUESTIONS from '../data/daily-questions'
+import { getDailyQuestion } from '../data/daily-questions'
 
 const cards = [
   { to: '/messages', icon: MessageCircle, label: 'Messages', desc: 'Boîte aux lettres', color: '#ff6b9d' },
@@ -27,8 +27,7 @@ export default function Home() {
     setDays(Math.floor((now - start) / (1000 * 60 * 60 * 24)))
     setUntilDays(Math.floor((meeting - now) / (1000 * 60 * 60 * 24)))
 
-    const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / (1000 * 60 * 60 * 24))
-    setDailyQ(DAILY_QUESTIONS[dayOfYear % DAILY_QUESTIONS.length])
+    setDailyQ(getDailyQuestion())
   }, [room])
 
   if (!room) return null

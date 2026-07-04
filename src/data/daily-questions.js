@@ -73,4 +73,11 @@ const DAILY_QUESTIONS = [
   "Qu'est-ce que tu veux qu'on se promette aujourd'hui ?",
 ]
 
+export function getDailyQuestion() {
+  const now = new Date()
+  const startOfYear = new Date(now.getFullYear(), 0, 0)
+  const dayOfYear = Math.floor((now - startOfYear) / (1000 * 60 * 60 * 24))
+  return DAILY_QUESTIONS[dayOfYear % DAILY_QUESTIONS.length]
+}
+
 export default DAILY_QUESTIONS

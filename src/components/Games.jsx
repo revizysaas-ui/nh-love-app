@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 import { useRoom } from '../context/RoomContext'
 import { notify } from '../lib/notify'
 import QUIZ_QUESTIONS from '../data/quiz-questions'
-import DAILY_QUESTIONS from '../data/daily-questions'
+import { getDailyQuestion } from '../data/daily-questions'
 import CULTURE_QUESTIONS from '../data/culture-questions'
 import DEFIS_DATA from '../data/defis'
 
@@ -374,38 +374,16 @@ function QuizGame() {
 }
 
 function DailyGame() {
-  const [q, setQ] = useState(null)
-  const [used, setUsed] = useState(new Set())
-
-  function pick() {
-    const available = DAILY_QUESTIONS.filter((_, i) => !used.has(i))
-    if (available.length === 0) { setUsed(new Set()); return }
-    const idx = DAILY_QUESTIONS.indexOf(available[Math.floor(Math.random() * available.length)])
-    setQ(DAILY_QUESTIONS[idx])
-    setUsed(prev => new Set([...prev, idx]))
-  }
+  const [q, setQ] = useState('')
+  useEffect(() => { setQ(getDailyQuestion()) }, [])
 
   return (
     <>
       <div className="game-card-wrapper">
-        {q ? (
-          <div className="game-card revealed" style={{ cursor: 'default', maxWidth: 440 }}>
-            <MessageCircle size={32} />
-            <p className="game-question" style={{ textAlign: 'center', marginTop: 12 }}>{q}</p>
-          </div>
-        ) : (
-          <div className="game-card idle" onClick={pick}>
-            <MessageCircle size={48} />
-            <p>Question du Jour</p>
-            <span>Un sujet pour nourrir votre conversation</span>
-          </div>
-        )}
-      </div>
-      <div className="game-actions">
-        <button className="btn btn-primary btn-lg" onClick={pick}>
-          <Shuffle size={20} />
-          {q ? 'Nouvelle question' : 'Découvrir'}
-        </button>
+        <div className="game-card revealed" style={{ cursor: 'default', maxWidth: 440 }}>
+          <MessageCircle size={32} />
+          <p className="game-question" style={{ textAlign: 'center', marginTop: 12 }}>{q}</p>
+        </div>
       </div>
     </>
   )

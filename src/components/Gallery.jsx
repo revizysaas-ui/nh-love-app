@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Image, Upload, X, Trash2, Heart } from 'lucide-react'
+import { Image, Upload, X, Trash2, Heart, Send, MessageCircle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useRoom } from '../context/RoomContext'
 import { notify } from '../lib/notify'
@@ -11,6 +11,8 @@ export default function Gallery() {
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [caption, setCaption] = useState('')
+  const [comments, setComments] = useState([])
+  const [commentText, setCommentText] = useState('')
   const fileRef = useRef(null)
 
   useEffect(() => {
@@ -65,9 +67,34 @@ export default function Gallery() {
     await supabase.from('photos').update({ caption }).eq('id', id)
   }
 
+  async function loadComments(photoId) {
+    const { data } = await supabase
+      .from('photo_comments')
+      .select('*')
+      .eq('photo_id', photoId)
+      .order('created_at', { ascending: true })
+    if (data) setComments(data)
+  }
+
+  async function addComment() {
+    if (!commentText.trim() || !selected) return
+    await supabase.from('photo_comments').insert({
+      photo_id: selected.id,
+      room_id: room.id,
+      author: username || 'Anonyme',
+      text: commentText.trim(),
+    })
+    setCommentText('')
+    loadComments(selected.id)
+    notify(room.id, 'comment', 'a commenté une photo 💬', username)
+  }
+
   function openPhoto(p) {
     setSelected(p)
     setCaption(p.caption)
+    setComments([])
+    setCommentText('')
+    loadComments(p.id)
   }
 
   return (
@@ -79,7 +106,7 @@ export default function Gallery() {
           <Upload size={16} />
           {uploading ? '...' : 'Ajouter'}
         </button>
-        <input ref={fileRef} type="file" accept="image/*" onChange={uploadPhoto} hidden />
+        <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={uploadPhoto} hidden />
       </div>
 
       {loading ? (
@@ -120,6 +147,34 @@ export default function Gallery() {
               <button className="btn-icon btn-danger-icon" onClick={() => deletePhoto(selected)}>
                 <Trash2 size={18} />
               </button>
+            </div>
+
+            <div className="comments-section">
+              <div className="comments-list">
+                {comments.length === 0 && (
+                  <p style={{ fontSize: 13, color: 'var(--muted-foreground)', textAlign: 'center' }}>
+                    Pas encore de commentaires
+                  </p>
+                )}
+                {comments.map(c => (
+                  <div key={c.id} className="comment-bubble">
+                    <strong>{c.author}</strong>
+                    <p>{c.text}</p>
+                    <small>{new Date(c.created_at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</small>
+                  </div>
+                ))}
+              </div>
+              <div className="comment-input-row">
+                <input
+                  placeholder="Écris un commentaire..."
+                  value={commentText}
+                  onChange={e => setCommentText(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && addComment()}
+                />
+                <button className="btn-icon" style={{ color: 'var(--primary)' }} onClick={addComment} disabled={!commentText.trim()}>
+                  <Send size={18} />
+                </button>
+              </div>
             </div>
           </div>
         </div>

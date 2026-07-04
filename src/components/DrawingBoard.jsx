@@ -1,10 +1,11 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
-import { PenLine, Trash2, Download, Save, Minus, Plus } from 'lucide-react'
+import { PenLine, Trash2, Download, Save, Minus, Plus, Undo2, Redo2, Eraser } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useRoom } from '../context/RoomContext'
 import { notify } from '../lib/notify'
 
-const COLORS = ['#e25555', '#ff6b6b', '#ffa07a', '#ffd700', '#98fb98', '#60a5fa', '#c084fc', '#2d2d2d']
+const COLORS = ['#e25555', '#ff6b6b', '#ffa07a', '#ffd700', '#98fb98', '#60a5fa', '#c084fc', '#2d2d2d', '#ff69b4', '#00ced1', '#ff8c00', '#8a79ab']
+const MAX_HISTORY = 30
 
 export default function DrawingBoard() {
   const { room, username } = useRoom()
@@ -14,7 +15,11 @@ export default function DrawingBoard() {
   const [brushSize, setBrushSize] = useState(4)
   const [saved, setSaved] = useState([])
   const [loading, setLoading] = useState(true)
+  const [isEraser, setIsEraser] = useState(false)
+  const [history, setHistory] = useState([])
+  const [historyIndex, setHistoryIndex] = useState(-1)
   const lastPoint = useRef(null)
+  const skipSave = useRef(false)
 
   const getPos = useCallback((e) => {
     const rect = canvasRef.current.getBoundingClientRect()
@@ -29,8 +34,54 @@ export default function DrawingBoard() {
   useEffect(() => {
     if (!room) return
     loadDrawings()
-    clearCanvas()
+    initCanvas()
   }, [room])
+
+  function initCanvas() {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    saveHistory()
+  }
+
+  function saveHistory() {
+    const dataUrl = canvasRef.current.toDataURL()
+    setHistory(prev => {
+      const newHistory = prev.slice(0, historyIndex + 1)
+      newHistory.push(dataUrl)
+      if (newHistory.length > MAX_HISTORY) newHistory.shift()
+      return newHistory
+    })
+    setHistoryIndex(prev => Math.min(prev + 1, MAX_HISTORY - 1))
+  }
+
+  function undo() {
+    if (historyIndex <= 0) return
+    skipSave.current = true
+    const newIndex = historyIndex - 1
+    setHistoryIndex(newIndex)
+    restoreState(history[newIndex])
+  }
+
+  function redo() {
+    if (historyIndex >= history.length - 1) return
+    skipSave.current = true
+    const newIndex = historyIndex + 1
+    setHistoryIndex(newIndex)
+    restoreState(history[newIndex])
+  }
+
+  function restoreState(dataUrl) {
+    const img = new Image()
+    img.onload = () => {
+      const ctx = canvasRef.current.getContext('2d')
+      ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height)
+      ctx.drawImage(img, 0, 0)
+    }
+    img.src = dataUrl
+  }
 
   async function loadDrawings() {
     const { data } = await supabase
@@ -57,8 +108,14 @@ export default function DrawingBoard() {
     if (!isDrawing) return
     const pos = getPos(e)
     const ctx = canvasRef.current.getContext('2d')
-    ctx.strokeStyle = color
-    ctx.lineWidth = brushSize
+    if (isEraser) {
+      ctx.globalCompositeOperation = 'destination-out'
+      ctx.strokeStyle = 'rgba(0,0,0,1)'
+    } else {
+      ctx.globalCompositeOperation = 'source-over'
+      ctx.strokeStyle = color
+    }
+    ctx.lineWidth = isEraser ? brushSize * 3 : brushSize
     ctx.lineCap = 'round'
     ctx.lineJoin = 'round'
     ctx.beginPath()
@@ -71,13 +128,18 @@ export default function DrawingBoard() {
   function stopDraw(e) {
     if (e) e.preventDefault()
     setIsDrawing(false)
-    lastPoint.current = null
+    const ctx = canvasRef.current.getContext('2d')
+    ctx.globalCompositeOperation = 'source-over'
+    if (!skipSave.current) saveHistory()
+    skipSave.current = false
   }
 
   function clearCanvas() {
     const ctx = canvasRef.current.getContext('2d')
+    ctx.globalCompositeOperation = 'source-over'
     ctx.fillStyle = '#ffffff'
     ctx.fillRect(0, 0, canvasRef.current.width, canvasRef.current.height)
+    saveHistory()
   }
 
   async function saveDrawing() {
@@ -92,6 +154,7 @@ export default function DrawingBoard() {
     img.onload = () => {
       clearCanvas()
       canvasRef.current.getContext('2d').drawImage(img, 0, 0)
+      saveHistory()
     }
     img.src = d.data_url
   }
@@ -118,13 +181,23 @@ export default function DrawingBoard() {
       <div className="drawing-tools">
         <div className="tool-group">
           {COLORS.map(c => (
-            <button key={c} className={`color-dot ${color === c ? 'active' : ''}`} style={{ background: c }} onClick={() => setColor(c)} />
+            <button key={c} className={`color-dot ${color === c && !isEraser ? 'active' : ''}`}
+              style={{ background: c }} onClick={() => { setColor(c); setIsEraser(false) }} />
           ))}
+          <button className={`btn-icon ${isEraser ? 'active-eraser' : ''}`}
+            style={isEraser ? { background: 'var(--secondary)', color: 'var(--primary)' } : {}}
+            onClick={() => setIsEraser(!isEraser)} title="Gomme">
+            <Eraser size={16} />
+          </button>
         </div>
         <div className="tool-group">
           <button className="btn-icon" onClick={() => setBrushSize(s => Math.max(2, s - 2))}><Minus size={16} /></button>
           <span className="brush-label">{brushSize}px</span>
           <button className="btn-icon" onClick={() => setBrushSize(s => Math.min(20, s + 2))}><Plus size={16} /></button>
+        </div>
+        <div className="tool-group">
+          <button className="btn-icon" onClick={undo} disabled={historyIndex <= 0}><Undo2 size={16} /></button>
+          <button className="btn-icon" onClick={redo} disabled={historyIndex >= history.length - 1}><Redo2 size={16} /></button>
         </div>
         <div className="tool-group">
           <button className="btn btn-sm" onClick={clearCanvas}><Trash2 size={14} /> Effacer</button>

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Heart, Calendar, MapPin, MessageCircle, Image, PenLine, Gamepad2, Sparkles } from 'lucide-react'
+import { Heart, Calendar, MapPin, MessageCircle, Image, PenLine, Gamepad2, Sparkles, MessageCircleQuestion } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useRoom } from '../context/RoomContext'
+import DAILY_QUESTIONS from '../data/daily-questions'
 
 const cards = [
   { to: '/messages', icon: MessageCircle, label: 'Messages', desc: 'Boîte aux lettres', color: '#ff6b9d' },
@@ -16,6 +17,7 @@ export default function Home() {
   const { room } = useRoom()
   const [days, setDays] = useState(0)
   const [untilDays, setUntilDays] = useState(0)
+  const [dailyQ, setDailyQ] = useState('')
 
   useEffect(() => {
     if (!room) return
@@ -24,6 +26,9 @@ export default function Home() {
     const now = new Date()
     setDays(Math.floor((now - start) / (1000 * 60 * 60 * 24)))
     setUntilDays(Math.floor((meeting - now) / (1000 * 60 * 60 * 24)))
+
+    const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / (1000 * 60 * 60 * 24))
+    setDailyQ(DAILY_QUESTIONS[dayOfYear % DAILY_QUESTIONS.length])
   }, [room])
 
   if (!room) return null
@@ -55,6 +60,16 @@ export default function Home() {
           <span>Depuis le {room.start_date}</span>
         </div>
       </div>
+
+      {dailyQ && (
+        <div className="daily-question-card" onClick={() => navigate('/jeux')}>
+          <div className="daily-q-badge">
+            <MessageCircleQuestion size={14} />
+            <span>Question du Jour</span>
+          </div>
+          <p className="daily-q-text">{dailyQ}</p>
+        </div>
+      )}
 
       <div className="quick-grid">
         {cards.map(c => (

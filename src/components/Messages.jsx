@@ -126,7 +126,7 @@ export default function Messages() {
         <button type="button" className="btn-icon msg-photo-btn" onClick={() => fileRef.current?.click()} disabled={uploading}>
           <ImagePlus size={20} />
         </button>
-        <input type="file" ref={fileRef} accept="image/*" style={{ display: 'none' }} onChange={handleFile} />
+        <input type="file" ref={fileRef} accept="image/*" capture="environment" style={{ display: 'none' }} onChange={handleFile} />
         <input
           placeholder="Écris un message..."
           value={text}

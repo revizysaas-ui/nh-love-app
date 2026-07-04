@@ -449,6 +449,35 @@ body {
 .saved-thumb small { display: block; font-size: 11px; color: var(--muted-foreground); margin-top: 4px; }
 .saved-thumb .btn-icon { position: absolute; top: 2px; right: 2px; background: var(--card); padding: 3px; }
 
+/* ========== DAILY QUESTION HOME ========== */
+.daily-question-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 16px; margin-bottom: 20px; cursor: pointer; transition: all 0.25s;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.daily-question-card:active { transform: scale(0.98); }
+.daily-question-card:hover { border-color: var(--ring); }
+.daily-q-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 12px; background: var(--secondary); color: var(--primary);
+  border-radius: 20px; font-size: 12px; font-weight: 600; width: fit-content;
+}
+.daily-q-text { font-size: 17px; font-weight: 600; line-height: 1.5; color: var(--foreground); margin: 0; }
+
+/* ========== PHOTO COMMENTS ========== */
+.comments-section { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 12px; }
+.comments-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; max-height: 200px; overflow-y: auto; }
+.comment-bubble { padding: 8px 12px; background: var(--secondary); border-radius: var(--radius); font-size: 14px; }
+.comment-bubble strong { font-size: 12px; color: var(--primary); }
+.comment-bubble p { margin-top: 2px; color: var(--foreground); }
+.comment-bubble small { font-size: 11px; color: var(--muted-foreground); display: block; margin-top: 2px; }
+.comment-input-row { display: flex; gap: 8px; }
+.comment-input-row input {
+  flex: 1; padding: 10px 14px; border: 2px solid var(--input); border-radius: var(--radius);
+  font-size: 14px; outline: none; font-family: inherit; background: var(--card); color: var(--foreground);
+}
+.comment-input-row input:focus { border-color: var(--ring); }
+
 /* ========== GAMES ========== */
 .games-menu {
   display: flex; gap: 8px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 4px;
@@ -496,6 +525,8 @@ body {
 .game-badge { display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 13px; color: var(--primary-foreground); font-weight: 600; margin-bottom: 16px; }
   .game-question { font-size: 19px; font-weight: 600; line-height: 1.5; color: var(--foreground); }
 .game-actions { display: flex; justify-content: center; gap: 12px; margin-top: 20px; flex-wrap: wrap; }
+
+.btn-icon:disabled { opacity: 0.35; cursor: not-allowed; }
 
 /* ========== TOASTS ========== */
 .toast-container {

@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { Settings, Menu, X, LogOut, Moon, Sun } from 'lucide-react'
+import { Heart, MessageCircle, Image, MapPin, PenLine, Gamepad2, Settings, Menu, X, LogOut, Moon, Sun } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useRoom } from '../context/RoomContext'
 import ExpandableTabs from './ui/ExpandableTabs'

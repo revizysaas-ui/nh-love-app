@@ -2,9 +2,10 @@ import { useState, useEffect, useRef } from 'react'
 import { Image, Upload, X, Trash2, Heart } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useRoom } from '../context/RoomContext'
+import { notify } from '../lib/notify'
 
 export default function Gallery() {
-  const { room } = useRoom()
+  const { room, username } = useRoom()
   const [photos, setPhotos] = useState([])
   const [selected, setSelected] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -50,6 +51,7 @@ export default function Gallery() {
       caption: '',
     })
     setUploading(false)
+    notify(room.id, 'photo', 'a ajouté une photo à la galerie 📸', username)
   }
 
   async function deletePhoto(photo) {

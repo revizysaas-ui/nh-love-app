@@ -1,5 +1,7 @@
+import { useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { RoomProvider, useRoom } from './context/RoomContext'
+import { NotificationProvider, useNotifications } from './context/NotificationContext'
 import Layout from './components/Layout'
 import Join from './components/Join'
 import Home from './components/Home'
@@ -20,6 +22,12 @@ function ProtectedRoute({ children }) {
 
 function AppRoutes() {
   const { room, loading } = useRoom()
+  const { setRoomId } = useNotifications()
+
+  useEffect(() => {
+    if (room) setRoomId(room.id)
+  }, [room])
+
   if (loading) return <div className="loading-screen"><div className="spinner" /></div>
   return (
     <Routes>
@@ -40,7 +48,9 @@ function AppRoutes() {
 export default function App() {
   return (
     <RoomProvider>
-      <AppRoutes />
+      <NotificationProvider>
+        <AppRoutes />
+      </NotificationProvider>
     </RoomProvider>
   )
 }

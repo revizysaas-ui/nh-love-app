@@ -289,6 +289,17 @@ body {
 .btn-primary:hover { opacity: 0.9; }
 .btn-secondary { background: var(--secondary); color: var(--secondary-foreground); }
 .btn-secondary:hover { background: var(--muted); }
+.msg-photo-btn {
+  width: 40px; height: 40px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  background: var(--secondary); color: var(--primary);
+}
+.msg-photo-btn:hover { background: var(--muted); }
+.msg-photo-btn:disabled { opacity: 0.4; }
+.msg-image {
+  max-width: 100%; border-radius: var(--radius); margin-top: 8px;
+  display: block; max-height: 200px; object-fit: cover;
+}
 .btn-sm { padding: 8px 16px; font-size: 13px; }
 .btn-lg { padding: 14px 28px; font-size: 16px; }
 .btn-icon {
@@ -486,6 +497,31 @@ body {
   .game-question { font-size: 19px; font-weight: 600; line-height: 1.5; color: var(--foreground); }
 .game-actions { display: flex; justify-content: center; gap: 12px; margin-top: 20px; flex-wrap: wrap; }
 
+/* ========== TOASTS ========== */
+.toast-container {
+  position: fixed; top: 60px; right: 16px; z-index: 999;
+  display: flex; flex-direction: column; gap: 8px;
+  max-width: 320px; width: calc(100% - 32px);
+  pointer-events: none;
+}
+.toast {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px; background: var(--card);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+  animation: slideInRight 0.3s ease; pointer-events: auto;
+}
+.toast svg { color: var(--primary); flex-shrink: 0; }
+.toast-body { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.toast-body strong { font-size: 13px; color: var(--foreground); }
+.toast-body span { font-size: 12px; color: var(--muted-foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.toast-close {
+  background: none; border: none; cursor: pointer; color: var(--muted-foreground);
+  padding: 4px; border-radius: 4px; display: flex; flex-shrink: 0;
+}
+.toast-close:hover { background: var(--muted); }
+@keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
 /* ========== ANIMATIONS ========== */
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
@@ -504,6 +540,7 @@ body {
   .gallery-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
   .messages-container { height: calc(100vh - 220px); min-height: 280px; }
   .msg-bubble { max-width: 90%; }
+  .msg-image { max-height: 150px; }
   .distance-cities { flex-direction: column; gap: 8px; }
   .games-menu { gap: 6px; }
   .games-menu-btn { padding: 8px 12px; font-size: 13px; }
@@ -549,6 +586,8 @@ body {
   .modal-card { padding: 12px; }
   .modal-img { max-height: 40vh; }
   .join-card { padding: 20px 16px; }
+  .toast-container { top: 56px; right: 8px; max-width: calc(100% - 16px); }
+  .toast { padding: 10px 12px; }
   .join-card h1 { font-size: 22px; }
   .join-name-field { margin-bottom: 16px; }
   .input-group { padding: 8px 12px; }

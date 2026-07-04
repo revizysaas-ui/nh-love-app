@@ -2,11 +2,12 @@ import { useRef, useState, useEffect, useCallback } from 'react'
 import { PenLine, Trash2, Download, Save, Minus, Plus } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useRoom } from '../context/RoomContext'
+import { notify } from '../lib/notify'
 
 const COLORS = ['#e25555', '#ff6b6b', '#ffa07a', '#ffd700', '#98fb98', '#60a5fa', '#c084fc', '#2d2d2d']
 
 export default function DrawingBoard() {
-  const { room } = useRoom()
+  const { room, username } = useRoom()
   const canvasRef = useRef(null)
   const [isDrawing, setIsDrawing] = useState(false)
   const [color, setColor] = useState('#e25555')
@@ -83,6 +84,7 @@ export default function DrawingBoard() {
     const dataUrl = canvasRef.current.toDataURL()
     await supabase.from('drawings').insert({ room_id: room.id, data_url: dataUrl })
     loadDrawings()
+    notify(room.id, 'drawing', 'a fait un dessin 🎨', username)
   }
 
   function loadDrawing(d) {

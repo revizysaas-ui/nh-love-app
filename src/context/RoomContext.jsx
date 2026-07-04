@@ -6,6 +6,12 @@ const RoomContext = createContext(null)
 export function RoomProvider({ children }) {
   const [room, setRoom] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [username, setUsernameState] = useState(() => localStorage.getItem('nh_username') || '')
+
+  const setUsername = useCallback((name) => {
+    setUsernameState(name)
+    localStorage.setItem('nh_username', name)
+  }, [])
 
   useEffect(() => {
     const saved = localStorage.getItem('nh_room')
@@ -46,11 +52,12 @@ export function RoomProvider({ children }) {
 
   const leaveRoom = useCallback(() => {
     localStorage.removeItem('nh_room')
+    localStorage.removeItem('nh_username')
     setRoom(null)
   }, [])
 
   return (
-    <RoomContext.Provider value={{ room, loading, createRoom, joinRoom, updateRoom, leaveRoom }}>
+    <RoomContext.Provider value={{ room, loading, createRoom, joinRoom, updateRoom, leaveRoom, username, setUsername }}>
       {children}
     </RoomContext.Provider>
   )

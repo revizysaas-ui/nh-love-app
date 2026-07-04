@@ -4,10 +4,9 @@ import { supabase } from '../lib/supabase'
 import { useRoom } from '../context/RoomContext'
 
 export default function Messages() {
-  const { room } = useRoom()
+  const { room, username } = useRoom()
   const [messages, setMessages] = useState([])
   const [text, setText] = useState('')
-  const [author, setAuthor] = useState('')
   const [loading, setLoading] = useState(true)
   const endRef = useRef(null)
 
@@ -42,7 +41,7 @@ export default function Messages() {
     if (!text.trim()) return
     await supabase
       .from('messages')
-      .insert({ room_id: room.id, author: author.trim() || 'Anonyme', text: text.trim() })
+      .insert({ room_id: room.id, author: username || 'Anonyme', text: text.trim() })
     setText('')
   }
 
@@ -70,10 +69,10 @@ export default function Messages() {
         ) : (
           <div className="messages-list">
             {messages.map(m => (
-              <div key={m.id} className="msg-bubble">
+              <div key={m.id} className={`msg-bubble ${m.author === username ? 'own' : ''}`}>
                 <div className="msg-meta">
                   <strong>{m.author}</strong>
-                  <small>{new Date(m.created_at).toLocaleString('fr-FR')}</small>
+                  <small>{new Date(m.created_at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</small>
                   <button className="btn-icon" onClick={() => deleteMessage(m.id)}>
                     <Trash2 size={14} />
                   </button>
@@ -87,12 +86,6 @@ export default function Messages() {
       </div>
 
       <form className="msg-input-bar" onSubmit={sendMessage}>
-        <input
-          className="msg-author-input"
-          placeholder="Ton prénom..."
-          value={author}
-          onChange={e => setAuthor(e.target.value)}
-        />
         <input
           placeholder="Écris un message..."
           value={text}

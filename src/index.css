@@ -217,6 +217,31 @@ body {
 .join-divider::before, .join-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 .join-form { display: flex; flex-direction: column; gap: 12px; }
 .join-error { color: var(--destructive); font-size: 13px; }
+.join-name-field {
+  display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; text-align: left;
+}
+.join-name-field label {
+  font-size: 14px; font-weight: 600; color: var(--muted-foreground);
+}
+.join-name-field input {
+  padding: 12px 14px; border: 2px solid var(--input); border-radius: var(--radius);
+  font-size: 16px; outline: none; font-family: inherit; transition: border-color 0.2s;
+  background: var(--card); color: var(--foreground); text-align: center;
+}
+.join-name-field input:focus { border-color: var(--ring); }
+
+.input-group {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; border: 2px solid var(--input); border-radius: var(--radius);
+  background: var(--card); transition: border-color 0.2s;
+}
+.input-group:focus-within { border-color: var(--ring); }
+.input-group input {
+  flex: 1; border: none; outline: none; font-size: 16px; font-family: inherit;
+  background: transparent; color: var(--foreground); text-transform: uppercase;
+  letter-spacing: 3px;
+}
+.input-group svg { color: var(--muted-foreground); flex-shrink: 0; }
 
 /* ========== SETTINGS ========== */
 .settings-card {
@@ -343,6 +368,15 @@ body {
   animation: fadeUp 0.2s ease; background: var(--secondary);
   align-self: flex-start; border-bottom-left-radius: 4px;
 }
+.msg-bubble.own {
+  align-self: flex-end; background: var(--primary); border-bottom-left-radius: var(--radius);
+  border-bottom-right-radius: 4px;
+}
+.msg-bubble.own p { color: var(--primary-foreground); }
+.msg-bubble.own .msg-meta strong { color: var(--primary-foreground); opacity: 0.9; }
+.msg-bubble.own .msg-meta small { color: var(--primary-foreground); opacity: 0.7; }
+.msg-bubble.own .btn-icon { color: var(--primary-foreground); opacity: 0.7; }
+.msg-bubble.own .btn-icon:hover { opacity: 1; background: rgba(255,255,255,0.15); }
 .msg-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font-size: 12px; color: var(--muted-foreground); }
 .msg-meta .btn-icon { color: var(--muted-foreground); padding: 2px; }
 .msg-meta .btn-icon:hover { background: var(--muted); }
@@ -469,6 +503,7 @@ body {
   .settings-card { padding: 16px 12px; }
   .join-card { padding: 24px 20px; }
   .join-card h1 { font-size: 24px; }
+  .join-name-field input { font-size: 16px; padding: 10px 12px; }
   .code-badge { font-size: 18px; padding: 8px 16px; }
   .map-container { height: 320px; }
 }
@@ -497,4 +532,9 @@ body {
   .game-question { font-size: 16px; }
   .modal-card { padding: 12px; }
   .modal-img { max-height: 40vh; }
+  .join-card { padding: 20px 16px; }
+  .join-card h1 { font-size: 22px; }
+  .join-name-field { margin-bottom: 16px; }
+  .input-group { padding: 8px 12px; }
+  .input-group input { font-size: 15px; letter-spacing: 2px; }
 }

@@ -1,22 +1,12 @@
-import { NavLink, Outlet } from 'react-router-dom'
-import { Heart, MessageCircle, Image, MapPin, PenLine, Gamepad2, Settings, Menu, X, LogOut, Moon, Sun } from 'lucide-react'
+import { Outlet, NavLink } from 'react-router-dom'
+import { Settings, Sun, Moon, LogOut } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useRoom } from '../context/RoomContext'
 import ExpandableTabs from './ui/ExpandableTabs'
 
-const links = [
-  { to: '/', icon: Heart, label: 'Accueil' },
-  { to: '/messages', icon: MessageCircle, label: 'Messages' },
-  { to: '/galerie', icon: Image, label: 'Galerie' },
-  { to: '/carte', icon: MapPin, label: 'Carte' },
-  { to: '/dessin', icon: PenLine, label: 'Dessin' },
-  { to: '/jeux', icon: Gamepad2, label: 'Jeux' },
-]
-
 export default function Layout() {
-  const [menuOpen, setMenuOpen] = useState(false)
-  const [dark, setDark] = useState(() => localStorage.getItem('nh_dark') === 'true')
   const { room, leaveRoom } = useRoom()
+  const [dark, setDark] = useState(() => localStorage.getItem('nh_dark') === 'true')
 
   useEffect(() => {
     document.body.classList.toggle('dark', dark)
@@ -25,82 +15,30 @@ export default function Layout() {
 
   return (
     <div className="app-layout">
-      <aside className="sidebar">
-        <div className="sidebar-brand">
-          <Heart size={28} className="sidebar-icon" />
-          <span className="sidebar-title">{room?.name1 || 'N'}&{room?.name2 || 'H'}</span>
-        </div>
-        <nav className="sidebar-nav">
-          {links.map(l => (
-            <NavLink key={l.to} to={l.to} className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
-              <l.icon size={20} />
-              <span>{l.label}</span>
-            </NavLink>
-          ))}
-        </nav>
-        <NavLink to="/parametres" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
-          <Settings size={20} />
-          <span>Paramètres</span>
-        </NavLink>
-        <button className="nav-item" onClick={() => setDark(!dark)}>
-          {dark ? <Sun size={20} /> : <Moon size={20} />}
-          <span>{dark ? 'Mode clair' : 'Mode sombre'}</span>
-        </button>
-        <button className="nav-item logout-btn" onClick={leaveRoom}>
-          <LogOut size={20} />
-          <span>Changer d&apos;espace</span>
-        </button>
-      </aside>
-
-      <header className="mobile-header">
-        <button onClick={() => setMenuOpen(true)} className="menu-btn">
-          <Menu size={24} />
-        </button>
-        <span className="mobile-title">{room?.name1 || 'N'}&{room?.name2 || 'H'}</span>
-        <NavLink to="/parametres" className="menu-btn">
+      <header className="app-header">
+        <span className="app-title">{room?.name1 || 'N'}&{room?.name2 || 'H'}</span>
+        <NavLink to="/parametres" className="header-settings">
           <Settings size={20} />
         </NavLink>
       </header>
 
-      {menuOpen && (
-        <div className="drawer-overlay" onClick={() => setMenuOpen(false)}>
-          <div className="drawer" onClick={e => e.stopPropagation()}>
-            <div className="drawer-header">
-              <Heart size={24} />
-              <span>{room?.name1 || 'N'}&{room?.name2 || 'H'}</span>
-              <button onClick={() => setMenuOpen(false)}><X size={24} /></button>
-            </div>
-            <nav className="drawer-nav">
-              {links.map(l => (
-                <NavLink key={l.to} to={l.to} className="drawer-item" onClick={() => setMenuOpen(false)}>
-                  <l.icon size={20} />
-                  <span>{l.label}</span>
-                </NavLink>
-              ))}
-              <NavLink to="/parametres" className="drawer-item" onClick={() => setMenuOpen(false)}>
-                <Settings size={20} />
-                <span>Paramètres</span>
-              </NavLink>
-              <button className="drawer-item" onClick={() => setDark(!dark)}>
-                {dark ? <Sun size={20} /> : <Moon size={20} />}
-                <span>{dark ? 'Mode clair' : 'Mode sombre'}</span>
-              </button>
-              <button className="drawer-item logout-btn" onClick={leaveRoom}>
-                <LogOut size={20} />
-                <span>Changer d&apos;espace</span>
-              </button>
-            </nav>
-          </div>
-        </div>
-      )}
-
-      <div className="bottom-nav-blur">
-        <ExpandableTabs />
-      </div>
-
       <main className="main-content">
         <Outlet />
       </main>
+
+      <div className="bottom-nav-blur">
+        <div className="bottom-actions">
+          <button className="bottom-action-btn" onClick={() => setDark(!dark)} title={dark ? 'Mode clair' : 'Mode sombre'}>
+            {dark ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+        </div>
+        <ExpandableTabs />
+        <div className="bottom-actions right">
+          <button className="bottom-action-btn" onClick={leaveRoom} title="Changer d'espace">
+            <LogOut size={18} />
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Send, MessageCircle, Heart, Trash2, ImagePlus } from 'lucide-react'
+import { Send, MessageCircle, Heart, Trash2, Camera } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useRoom } from '../context/RoomContext'
 import { notify } from '../lib/notify'
@@ -123,8 +123,8 @@ export default function Messages() {
       </div>
 
       <form className="msg-input-bar" onSubmit={sendMessage}>
-        <button type="button" className="btn-icon msg-photo-btn" onClick={() => fileRef.current?.click()} disabled={uploading}>
-          <ImagePlus size={20} />
+        <button type="button" className="btn btn-sm" style={{ background: 'var(--secondary)', color: 'var(--foreground)', flexShrink: 0 }} onClick={() => fileRef.current?.click()} disabled={uploading}>
+          <Camera size={16} /> Photo
         </button>
         <input type="file" ref={fileRef} accept="image/*" capture="environment" style={{ display: 'none' }} onChange={handleFile} />
         <input

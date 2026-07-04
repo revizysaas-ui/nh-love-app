@@ -439,6 +439,20 @@ body {
 .saved-thumb .btn-icon { position: absolute; top: 2px; right: 2px; background: var(--card); padding: 3px; }
 
 /* ========== GAMES ========== */
+.games-menu {
+  display: flex; gap: 8px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 4px;
+  -webkit-overflow-scrolling: touch; scrollbar-width: none;
+}
+.games-menu::-webkit-scrollbar { display: none; }
+.games-menu-btn {
+  display: flex; align-items: center; gap: 6px; white-space: nowrap;
+  padding: 10px 16px; border: 2px solid var(--input); border-radius: var(--radius);
+  background: var(--card); font-size: 14px; font-weight: 600; cursor: pointer;
+  transition: all 0.2s; color: var(--muted-foreground); flex-shrink: 0;
+}
+.games-menu-btn.active { border-color: var(--ring); background: var(--secondary); color: var(--primary); }
+.games-menu-btn:hover:not(.active) { border-color: var(--muted); background: var(--muted); }
+
 .game-controls { background: var(--card); border-radius: var(--radius); padding: 20px 16px; margin-bottom: 20px; border: 1px solid var(--border); display: flex; flex-direction: column; gap: 14px; }
 .toggle-group { display: flex; gap: 8px; }
 .toggle-btn {
@@ -469,8 +483,8 @@ body {
 .game-card-front p { font-size: 16px; margin-top: 12px; }
 .game-card-front small { font-size: 13px; opacity: 0.8; margin-top: 8px; display: block; }
 .game-badge { display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 13px; color: var(--primary-foreground); font-weight: 600; margin-bottom: 16px; }
-.game-question { font-size: 19px; font-weight: 600; line-height: 1.5; color: var(--foreground); }
-.game-actions { display: flex; justify-content: center; gap: 12px; margin-top: 20px; }
+  .game-question { font-size: 19px; font-weight: 600; line-height: 1.5; color: var(--foreground); }
+.game-actions { display: flex; justify-content: center; gap: 12px; margin-top: 20px; flex-wrap: wrap; }
 
 /* ========== ANIMATIONS ========== */
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -491,6 +505,8 @@ body {
   .messages-container { height: calc(100vh - 220px); min-height: 280px; }
   .msg-bubble { max-width: 90%; }
   .distance-cities { flex-direction: column; gap: 8px; }
+  .games-menu { gap: 6px; }
+  .games-menu-btn { padding: 8px 12px; font-size: 13px; }
   .game-controls { padding: 16px; }
   .difficulty-group { flex-direction: column; }
   .game-actions { flex-direction: column; }

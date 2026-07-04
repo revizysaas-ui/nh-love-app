@@ -8,7 +8,7 @@ import { Heart, MessageCircle, Image, MapPin, PenLine, Gamepad2 } from "lucide-r
 
 const tabs = [
   { title: "Accueil", icon: Heart, path: "/" },
-  { title: "Messages", icon: MessageCircle, path: "/messages" },
+  { title: "Msg", icon: MessageCircle, path: "/messages" },
   { title: "Galerie", icon: Image, path: "/galerie" },
   { title: "Carte", icon: MapPin, path: "/carte" },
   { title: "Dessin", icon: PenLine, path: "/dessin" },

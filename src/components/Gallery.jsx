@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { Image, Upload, X, Trash2, Heart } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { useRoom } from '../context/RoomContext'
 
 export default function Gallery() {
+  const { room } = useRoom()
   const [photos, setPhotos] = useState([])
   const [selected, setSelected] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -11,18 +13,20 @@ export default function Gallery() {
   const fileRef = useRef(null)
 
   useEffect(() => {
+    if (!room) return
     loadPhotos()
     const sub = supabase
-      .channel('photos')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'photos' }, () => loadPhotos())
+      .channel('photos-' + room.id)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'photos', filter: `room_id=eq.${room.id}` }, () => loadPhotos())
       .subscribe()
     return () => supabase.removeChannel(sub)
-  }, [])
+  }, [room])
 
   async function loadPhotos() {
     const { data } = await supabase
       .from('photos')
       .select('*')
+      .eq('room_id', room.id)
       .order('created_at', { ascending: false })
     if (data) setPhotos(data)
     setLoading(false)
@@ -33,7 +37,7 @@ export default function Gallery() {
     if (!file) return
     setUploading(true)
     const ext = file.name.split('.').pop()
-    const path = `${Date.now()}.${ext}`
+    const path = `${room.id}/${Date.now()}.${ext}`
 
     const { error: uploadErr } = await supabase.storage
       .from('photos')
@@ -41,6 +45,7 @@ export default function Gallery() {
     if (uploadErr) { setUploading(false); return }
 
     await supabase.from('photos').insert({
+      room_id: room.id,
       storage_path: path,
       caption: '',
     })

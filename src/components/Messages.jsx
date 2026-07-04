@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { Send, MessageCircle, Heart, Trash2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { useRoom } from '../context/RoomContext'
 
 export default function Messages() {
+  const { room } = useRoom()
   const [messages, setMessages] = useState([])
   const [text, setText] = useState('')
   const [author, setAuthor] = useState('')
@@ -10,15 +12,16 @@ export default function Messages() {
   const endRef = useRef(null)
 
   useEffect(() => {
+    if (!room) return
     loadMessages()
     const sub = supabase
-      .channel('messages')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
+      .channel('messages-' + room.id)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `room_id=eq.${room.id}` }, payload => {
         setMessages(prev => [...prev, payload.new])
       })
       .subscribe()
     return () => supabase.removeChannel(sub)
-  }, [])
+  }, [room])
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -28,6 +31,7 @@ export default function Messages() {
     const { data } = await supabase
       .from('messages')
       .select('*')
+      .eq('room_id', room.id)
       .order('created_at', { ascending: true })
     if (data) setMessages(data)
     setLoading(false)
@@ -38,7 +42,7 @@ export default function Messages() {
     if (!text.trim()) return
     await supabase
       .from('messages')
-      .insert({ author: author.trim() || 'Anonyme', text: text.trim() })
+      .insert({ room_id: room.id, author: author.trim() || 'Anonyme', text: text.trim() })
     setText('')
   }
 

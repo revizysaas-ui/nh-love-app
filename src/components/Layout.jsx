@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { Heart, MessageCircle, Image, MapPin, PenLine, Gamepad2, Menu, X } from 'lucide-react'
+import { Heart, MessageCircle, Image, MapPin, PenLine, Gamepad2, Settings, Menu, X, LogOut } from 'lucide-react'
 import { useState } from 'react'
+import { useRoom } from '../context/RoomContext'
 
 const links = [
   { to: '/', icon: Heart, label: 'Accueil' },
@@ -13,13 +14,14 @@ const links = [
 
 export default function Layout() {
   const [menuOpen, setMenuOpen] = useState(false)
+  const { room, leaveRoom } = useRoom()
 
   return (
     <div className="app-layout">
       <aside className="sidebar">
         <div className="sidebar-brand">
           <Heart size={28} className="sidebar-icon" />
-          <span className="sidebar-title">N&H</span>
+          <span className="sidebar-title">{room?.name1 || 'N'}&{room?.name2 || 'H'}</span>
         </div>
         <nav className="sidebar-nav">
           {links.map(l => (
@@ -29,14 +31,24 @@ export default function Layout() {
             </NavLink>
           ))}
         </nav>
+        <NavLink to="/parametres" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
+          <Settings size={20} />
+          <span>Paramètres</span>
+        </NavLink>
+        <button className="nav-item logout-btn" onClick={leaveRoom}>
+          <LogOut size={20} />
+          <span>Changer d&apos;espace</span>
+        </button>
       </aside>
 
       <header className="mobile-header">
         <button onClick={() => setMenuOpen(true)} className="menu-btn">
           <Menu size={24} />
         </button>
-        <span className="mobile-title">N&H</span>
-        <div style={{ width: 40 }} />
+        <span className="mobile-title">{room?.name1 || 'N'}&{room?.name2 || 'H'}</span>
+        <NavLink to="/parametres" className="menu-btn">
+          <Settings size={20} />
+        </NavLink>
       </header>
 
       {menuOpen && (
@@ -44,7 +56,7 @@ export default function Layout() {
           <div className="drawer" onClick={e => e.stopPropagation()}>
             <div className="drawer-header">
               <Heart size={24} />
-              <span>N&H</span>
+              <span>{room?.name1 || 'N'}&{room?.name2 || 'H'}</span>
               <button onClick={() => setMenuOpen(false)}><X size={24} /></button>
             </div>
             <nav className="drawer-nav">
@@ -54,6 +66,14 @@ export default function Layout() {
                   <span>{l.label}</span>
                 </NavLink>
               ))}
+              <NavLink to="/parametres" className="drawer-item" onClick={() => setMenuOpen(false)}>
+                <Settings size={20} />
+                <span>Paramètres</span>
+              </NavLink>
+              <button className="drawer-item logout-btn" onClick={leaveRoom}>
+                <LogOut size={20} />
+                <span>Changer d&apos;espace</span>
+              </button>
             </nav>
           </div>
         </div>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Heart, Calendar, MapPin, MessageCircle, Image, PenLine, Gamepad2, Sparkles } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { DATES } from '../config'
+import { useRoom } from '../context/RoomContext'
 
 const cards = [
   { to: '/messages', icon: MessageCircle, label: 'Messages', desc: 'Boîte aux lettres', color: '#ff6b9d' },
@@ -13,16 +13,20 @@ const cards = [
 
 export default function Home() {
   const navigate = useNavigate()
+  const { room } = useRoom()
   const [days, setDays] = useState(0)
   const [untilDays, setUntilDays] = useState(0)
 
   useEffect(() => {
-    const start = new Date(DATES.start)
-    const meeting = new Date(DATES.nextMeeting)
+    if (!room) return
+    const start = new Date(room.start_date)
+    const meeting = new Date(room.next_meeting)
     const now = new Date()
     setDays(Math.floor((now - start) / (1000 * 60 * 60 * 24)))
     setUntilDays(Math.floor((meeting - now) / (1000 * 60 * 60 * 24)))
-  }, [])
+  }, [room])
+
+  if (!room) return null
 
   return (
     <div className="home-page">
@@ -33,7 +37,7 @@ export default function Home() {
         </div>
         <h1 className="hero-title">
           <Heart size={32} className="hero-heart" fill="#e25555" />
-          <span>N&H</span>
+          <span>{room.name1} & {room.name2}</span>
         </h1>
         <div className="hero-counters">
           <div className="hero-stat">
@@ -48,7 +52,7 @@ export default function Home() {
         </div>
         <div className="hero-date">
           <Calendar size={14} />
-          <span>Depuis le {DATES.start}</span>
+          <span>Depuis le {room.start_date}</span>
         </div>
       </div>
 

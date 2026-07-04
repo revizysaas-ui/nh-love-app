@@ -11,11 +11,13 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.0",
+    "framer-motion": "^12.42.2",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.23.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "react-router-dom": "^7.18.1"
+    "react-router-dom": "^7.18.1",
+    "usehooks-ts": "^3.1.1"
   },
   "devDependencies": {
     "@types/react": "^19.2.17",

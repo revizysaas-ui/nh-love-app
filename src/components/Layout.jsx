@@ -1,7 +1,8 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { Heart, MessageCircle, Image, MapPin, PenLine, Gamepad2, Settings, Menu, X, LogOut, Moon, Sun } from 'lucide-react'
+import { Settings, Menu, X, LogOut, Moon, Sun } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useRoom } from '../context/RoomContext'
+import ExpandableTabs from './ui/ExpandableTabs'
 
 const links = [
   { to: '/', icon: Heart, label: 'Accueil' },
@@ -93,14 +94,9 @@ export default function Layout() {
         </div>
       )}
 
-      <nav className="bottom-nav">
-        {links.map(l => (
-          <NavLink key={l.to} to={l.to} className={({ isActive }) => isActive ? 'bottom-item active' : 'bottom-item'}>
-            <l.icon size={20} />
-            <span>{l.label}</span>
-          </NavLink>
-        ))}
-      </nav>
+      <div className="bottom-nav-blur">
+        <ExpandableTabs />
+      </div>
 
       <main className="main-content">
         <Outlet />

@@ -1,17 +1,39 @@
 import { useState } from 'react'
-import { Settings as SettingsIcon, Heart, MapPin, Calendar, Save, Copy, Check } from 'lucide-react'
+import { Settings as SettingsIcon, Heart, MapPin, Calendar, Save, Copy, Check, Search, Loader } from 'lucide-react'
 import { useRoom } from '../context/RoomContext'
+
+async function geocode(city) {
+  if (!city.trim()) return null
+  const res = await fetch(
+    `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city)}&format=json&limit=1`,
+    { headers: { 'User-Agent': 'NH-Love-App/1.0' } }
+  )
+  const data = await res.json()
+  if (data.length === 0) return null
+  return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) }
+}
 
 export default function Settings() {
   const { room, updateRoom } = useRoom()
   const [form, setForm] = useState(room || {})
   const [saved, setSaved] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [searching1, setSearching1] = useState(false)
+  const [searching2, setSearching2] = useState(false)
 
   if (!room) return null
 
   function handleChange(key, value) {
     setForm(prev => ({ ...prev, [key]: value }))
+  }
+
+  async function handleGeocode(cityKey, latKey, lngKey, setSearching) {
+    setSearching(true)
+    const result = await geocode(form[cityKey])
+    if (result) {
+      setForm(prev => ({ ...prev, [latKey]: result.lat, [lngKey]: result.lng }))
+    }
+    setSearching(false)
   }
 
   async function handleSave() {
@@ -21,11 +43,11 @@ export default function Settings() {
       start_date: form.start_date,
       next_meeting: form.next_meeting,
       city1_name: form.city1_name,
-      city1_lat: parseFloat(form.city1_lat),
-      city1_lng: parseFloat(form.city1_lng),
+      city1_lat: parseFloat(form.city1_lat) || 0,
+      city1_lng: parseFloat(form.city1_lng) || 0,
       city2_name: form.city2_name,
-      city2_lat: parseFloat(form.city2_lat),
-      city2_lng: parseFloat(form.city2_lng),
+      city2_lat: parseFloat(form.city2_lat) || 0,
+      city2_lng: parseFloat(form.city2_lng) || 0,
     })
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
@@ -87,7 +109,21 @@ export default function Settings() {
         <div className="settings-grid">
           <div className="field">
             <label>Ta ville</label>
-            <input value={form.city1_name} onChange={e => handleChange('city1_name', e.target.value)} />
+            <div className="field-row">
+              <input
+                value={form.city1_name}
+                onChange={e => handleChange('city1_name', e.target.value)}
+                placeholder="Ex: Paris, France"
+                style={{ flex: 1 }}
+              />
+              <button
+                className="btn btn-sm btn-secondary"
+                onClick={() => handleGeocode('city1_name', 'city1_lat', 'city1_lng', setSearching1)}
+                disabled={searching1}
+              >
+                {searching1 ? <Loader size={14} /> : <Search size={14} />}
+              </button>
+            </div>
           </div>
           <div className="field-row">
             <div className="field">
@@ -101,7 +137,21 @@ export default function Settings() {
           </div>
           <div className="field">
             <label>Sa ville</label>
-            <input value={form.city2_name} onChange={e => handleChange('city2_name', e.target.value)} />
+            <div className="field-row">
+              <input
+                value={form.city2_name}
+                onChange={e => handleChange('city2_name', e.target.value)}
+                placeholder="Ex: New York, USA"
+                style={{ flex: 1 }}
+              />
+              <button
+                className="btn btn-sm btn-secondary"
+                onClick={() => handleGeocode('city2_name', 'city2_lat', 'city2_lng', setSearching2)}
+                disabled={searching2}
+              >
+                {searching2 ? <Loader size={14} /> : <Search size={14} />}
+              </button>
+            </div>
           </div>
           <div className="field-row">
             <div className="field">

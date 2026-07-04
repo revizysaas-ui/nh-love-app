@@ -263,6 +263,7 @@ body {
 .btn-icon:hover { background: var(--rose-bg); color: var(--rose); }
 .btn-danger-icon:hover { background: #fef2f2; color: #ef4444; }
 .btn-full { width: 100%; }
+.btn-spin svg { animation: spin 1s linear infinite; }
 
 /* ========== LOADING ========== */
 .loading-screen { display: flex; align-items: center; justify-content: center; min-height: 300px; }

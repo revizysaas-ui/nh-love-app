@@ -1,6 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { Heart, MessageCircle, Image, MapPin, PenLine, Gamepad2, Settings, Menu, X, LogOut } from 'lucide-react'
-import { useState } from 'react'
+import { Heart, MessageCircle, Image, MapPin, PenLine, Gamepad2, Settings, Menu, X, LogOut, Moon, Sun } from 'lucide-react'
+import { useState, useEffect } from 'react'
 import { useRoom } from '../context/RoomContext'
 
 const links = [
@@ -14,7 +14,13 @@ const links = [
 
 export default function Layout() {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [dark, setDark] = useState(() => localStorage.getItem('nh_dark') === 'true')
   const { room, leaveRoom } = useRoom()
+
+  useEffect(() => {
+    document.body.classList.toggle('dark', dark)
+    localStorage.setItem('nh_dark', dark)
+  }, [dark])
 
   return (
     <div className="app-layout">
@@ -35,6 +41,10 @@ export default function Layout() {
           <Settings size={20} />
           <span>Paramètres</span>
         </NavLink>
+        <button className="nav-item" onClick={() => setDark(!dark)}>
+          {dark ? <Sun size={20} /> : <Moon size={20} />}
+          <span>{dark ? 'Mode clair' : 'Mode sombre'}</span>
+        </button>
         <button className="nav-item logout-btn" onClick={leaveRoom}>
           <LogOut size={20} />
           <span>Changer d&apos;espace</span>
@@ -70,6 +80,10 @@ export default function Layout() {
                 <Settings size={20} />
                 <span>Paramètres</span>
               </NavLink>
+              <button className="drawer-item" onClick={() => setDark(!dark)}>
+                {dark ? <Sun size={20} /> : <Moon size={20} />}
+                <span>{dark ? 'Mode clair' : 'Mode sombre'}</span>
+              </button>
               <button className="drawer-item logout-btn" onClick={leaveRoom}>
                 <LogOut size={20} />
                 <span>Changer d&apos;espace</span>

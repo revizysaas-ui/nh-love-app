@@ -1,15 +1,12 @@
-import { Outlet, NavLink, useLocation } from 'react-router-dom'
+import { Outlet, NavLink } from 'react-router-dom'
 import { Settings, Sun, Moon, LogOut } from 'lucide-react'
 import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
 import { useRoom } from '../context/RoomContext'
 import ExpandableTabs from './ui/ExpandableTabs'
 
 export default function Layout() {
   const { room, leaveRoom } = useRoom()
   const [dark, setDark] = useState(() => localStorage.getItem('nh_dark') === 'true')
-  const location = useLocation()
-
   useEffect(() => {
     document.body.classList.toggle('dark', dark)
     localStorage.setItem('nh_dark', dark)
@@ -25,17 +22,7 @@ export default function Layout() {
       </header>
 
       <main className="main-content">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={location.pathname}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -12 }}
-            transition={{ duration: 0.25, ease: 'easeOut' }}
-          >
-            <Outlet />
-          </motion.div>
-        </AnimatePresence>
+        <Outlet />
       </main>
 
       <div className="bottom-nav-blur">

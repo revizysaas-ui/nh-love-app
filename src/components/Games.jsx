@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Gamepad2, Heart, Sparkles, Shuffle, RotateCcw, AlertCircle, HelpCircle, MessageCircle, Target, BookOpen, Camera, Send, CheckCircle2, XCircle, UserCheck } from 'lucide-react'
+import { Gamepad2, Heart, Sparkles, Shuffle, RotateCcw, AlertCircle, HelpCircle, MessageCircle, Target, BookOpen, Camera, Send, CheckCircle2, XCircle, UserCheck, Cherry, Grid3X3 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useRoom } from '../context/RoomContext'
 import { notify } from '../lib/notify'
@@ -14,6 +14,8 @@ const GAMES = [
   { key: 'daily', icon: MessageCircle, label: 'Question du Jour' },
   { key: 'defis', icon: Target, label: 'Défis' },
   { key: 'culture', icon: BookOpen, label: 'Culture G' },
+  { key: 'roue', icon: Cherry, label: 'Roue de la Chance' },
+  { key: 'morpion', icon: Grid3X3, label: 'Morpion' },
 ]
 
 const DIFFICULTIES = [
@@ -549,12 +551,145 @@ function CultureGame() {
   )
 }
 
+function RoueGame() {
+  const [choices, setChoices] = useState(['Film', 'Resto', 'Balade', 'Jeu', 'Série', 'Cuisine'])
+  const [input, setInput] = useState('')
+  const [result, setResult] = useState(null)
+  const [spinning, setSpinning] = useState(false)
+
+  function addChoice() {
+    if (!input.trim() || choices.length >= 8) return
+    setChoices(prev => [...prev, input.trim()])
+    setInput('')
+  }
+
+  function removeChoice(i) {
+    if (choices.length <= 2) return
+    setChoices(prev => prev.filter((_, idx) => idx !== i))
+  }
+
+  function spin() {
+    if (spinning) return
+    setSpinning(true)
+    setResult(null)
+    let count = 0
+    const max = 15 + Math.floor(Math.random() * 10)
+    const interval = setInterval(() => {
+      setResult(choices[Math.floor(Math.random() * choices.length)])
+      count++
+      if (count >= max) {
+        clearInterval(interval)
+        setSpinning(false)
+      }
+    }, 80)
+  }
+
+  return (
+    <>
+      <div className="game-card-wrapper">
+        <div className="game-card revealed" style={{ cursor: 'default', maxWidth: 440 }}>
+          <Cherry size={32} />
+          {result ? (
+            <p className="game-question" style={{ textAlign: 'center', marginTop: 12, fontSize: 24, color: spinning ? 'var(--muted-foreground)' : 'var(--primary)' }}>
+              {result}
+            </p>
+          ) : (
+            <p style={{ color: 'var(--muted-foreground)', textAlign: 'center', marginTop: 8, fontSize: 14 }}>
+              Ajoute des choix et lance la roue !
+            </p>
+          )}
+          <div className="roue-choices">
+            {choices.map((c, i) => (
+              <span key={i} className="roue-tag">{c}<button className="roue-tag-remove" onClick={() => removeChoice(i)}>×</button></span>
+            ))}
+          </div>
+          <div className="roue-input">
+            <input placeholder="Nouveau choix..." value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && addChoice()} />
+            <button className="btn btn-sm" onClick={addChoice} disabled={!input.trim() || choices.length >= 8}>+</button>
+          </div>
+        </div>
+      </div>
+      <div className="game-actions">
+        <button className="btn btn-primary btn-lg" onClick={spin} disabled={spinning || choices.length < 2}>
+          <Shuffle size={20} /> {spinning ? '...' : 'Lancer la roue !'}
+        </button>
+      </div>
+    </>
+  )
+}
+
+function MorpionGame() {
+  const [board, setBoard] = useState(Array(9).fill(null))
+  const [xIsNext, setXIsNext] = useState(true)
+  const [winner, setWinner] = useState(null)
+  const [scores, setScores] = useState({ X: 0, O: 0 })
+
+  function calculateWinner(squares) {
+    const lines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]]
+    for (const [a,b,c] of lines) {
+      if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) return squares[a]
+    }
+    if (squares.every(s => s)) return 'draw'
+    return null
+  }
+
+  function handleClick(i) {
+    if (board[i] || winner) return
+    const newBoard = [...board]
+    newBoard[i] = xIsNext ? 'X' : 'O'
+    setBoard(newBoard)
+    setXIsNext(!xIsNext)
+    const w = calculateWinner(newBoard)
+    if (w && w !== 'draw') {
+      setWinner(w)
+      setScores(s => ({ ...s, [w]: s[w] + 1 }))
+    } else if (w === 'draw') {
+      setWinner('draw')
+    }
+  }
+
+  function reset() {
+    setBoard(Array(9).fill(null))
+    setXIsNext(true)
+    setWinner(null)
+  }
+
+  const w = calculateWinner(board)
+  const status = w === 'draw' ? 'Match nul !' : w ? `Gagnant : ${w}` : `Tour : ${xIsNext ? 'X' : 'O'}`
+
+  return (
+    <>
+      <div className="game-card-wrapper">
+        <div className="game-card revealed" style={{ cursor: 'default', flexDirection: 'column', maxWidth: 320 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', marginBottom: 12, fontSize: 14, color: 'var(--muted-foreground)' }}>
+            <span>X: {scores.X}</span>
+            <span style={{ fontWeight: 700, color: w ? 'var(--primary)' : 'var(--foreground)' }}>{status}</span>
+            <span>O: {scores.O}</span>
+          </div>
+          <div className="morpion-board">
+            {board.map((cell, i) => (
+              <button key={i} className={`morpion-cell ${cell ? 'taken' : ''}`} onClick={() => handleClick(i)}>
+                {cell && <span style={{ color: cell === 'X' ? '#ff6b9d' : '#60a5fa', fontSize: 28, fontWeight: 800 }}>{cell}</span>}
+              </button>
+            ))}
+          </div>
+          {(winner || board.every(s => s)) && (
+            <button className="btn btn-sm" style={{ marginTop: 12 }} onClick={reset}><RotateCcw size={14} /> Rejouer</button>
+          )}
+        </div>
+      </div>
+    </>
+  )
+}
+
 const GAME_COMPONENTS = {
   truthdare: TruthOrDare,
   quiz: QuizGame,
   daily: DailyGame,
   defis: DefisGame,
   culture: CultureGame,
+  roue: RoueGame,
+  morpion: MorpionGame,
 }
 
 export default function Games() {

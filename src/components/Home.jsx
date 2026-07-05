@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Heart, Calendar, MapPin, MessageCircle, Image, PenLine, Gamepad2, Sparkles, MessageCircleQuestion, LayoutDashboard } from 'lucide-react'
+import { Heart, Calendar, MapPin, MessageCircle, Image, PenLine, Gamepad2, Sparkles, MessageCircleQuestion, LayoutDashboard, BarChart3, Gift, Hash, Music } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useRoom } from '../context/RoomContext'
 import { getDailyQuestion } from '../data/daily-questions'
@@ -11,6 +11,10 @@ const cards = [
   { to: '/dessin', icon: PenLine, label: 'Dessin', desc: 'Dessine-moi', color: '#34d399' },
   { to: '/jeux', icon: Gamepad2, label: 'Jeux', desc: 'Vérité ou action', color: '#f472b6' },
   { to: '/widgets', icon: LayoutDashboard, label: 'Widgets', desc: 'Nos stats en direct', color: '#f59e0b' },
+  { to: '/stats', icon: BarChart3, label: 'Stats', desc: 'Messages, photos...', color: '#ef4444' },
+  { to: '/souhaits', icon: Gift, label: 'Souhaits', desc: 'Idées cadeaux', color: '#ec4899' },
+  { to: '/compteurs', icon: Hash, label: 'Compteurs', desc: 'Tout comptabiliser', color: '#14b8a6' },
+  { to: '/playlist', icon: Music, label: 'Playlist', desc: 'Nos sons', color: '#f97316' },
 ]
 
 export default function Home() {

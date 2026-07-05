@@ -7,6 +7,7 @@ import { notify } from '../lib/notify'
 export default function Messages() {
   const { room, username } = useRoom()
   const [messages, setMessages] = useState([])
+  const [reactions, setReactions] = useState({})
   const [text, setText] = useState('')
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
@@ -17,11 +18,13 @@ export default function Messages() {
   useEffect(() => {
     if (!room) return
     loadMessages()
+    loadReactions()
     const sub = supabase
       .channel('messages-' + room.id)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `room_id=eq.${room.id}` }, payload => {
         setMessages(prev => [...prev, payload.new])
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reactions', filter: `message_id=in.(select id from messages where room_id=eq.${room.id})` }, () => loadReactions())
       .subscribe()
     return () => supabase.removeChannel(sub)
   }, [room])
@@ -36,8 +39,38 @@ export default function Messages() {
       .select('*')
       .eq('room_id', room.id)
       .order('created_at', { ascending: true })
-    if (data) setMessages(data)
+    if (data) {
+      setMessages(data)
+      loadReactionsFor(data)
+    }
     setLoading(false)
+  }
+
+  async function loadReactions() {
+    loadReactionsFor(messages)
+  }
+
+  async function loadReactionsFor(msgs) {
+    const mids = msgs.map(m => m.id)
+    if (mids.length === 0) return
+    const { data } = await supabase.from('reactions').select('*').in('message_id', mids)
+    if (data) {
+      const grouped = {}
+      data.forEach(r => {
+        if (!grouped[r.message_id]) grouped[r.message_id] = []
+        grouped[r.message_id].push(r)
+      })
+      setReactions(grouped)
+    }
+  }
+
+  async function toggleReaction(messageId) {
+    const existing = reactions[messageId]?.find(r => r.author === username)
+    if (existing) {
+      await supabase.from('reactions').delete().eq('id', existing.id)
+    } else {
+      await supabase.from('reactions').insert({ message_id: messageId, author: username })
+    }
   }
 
   async function sendMessage(e) {
@@ -103,21 +136,30 @@ export default function Messages() {
           </div>
         ) : (
           <div className="messages-list">
-            {messages.map(m => (
-              <div key={m.id} className={`msg-bubble ${m.author === username ? 'own' : ''}`}>
-                <div className="msg-meta">
-                  <strong>{m.author}</strong>
-                  <small>{new Date(m.created_at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</small>
-                  <button className="btn-icon" onClick={() => deleteMessage(m.id)}>
-                    <Trash2 size={14} />
-                  </button>
+            {messages.map(m => {
+              const msgReactions = reactions[m.id] || []
+              const hasLiked = msgReactions.some(r => r.author === username)
+              return (
+                <div key={m.id} className={`msg-bubble ${m.author === username ? 'own' : ''}`}>
+                  <div className="msg-meta">
+                    <strong>{m.author}</strong>
+                    <small>{new Date(m.created_at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</small>
+                    <button className="btn-icon" onClick={() => deleteMessage(m.id)}>
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                  {m.text && <p>{m.text}</p>}
+                  {m.image_url && (
+                    <img src={m.image_url} alt="photo" className="msg-image" loading="lazy" />
+                  )}
+                  <div className="msg-reactions">
+                    <button className={`reaction-btn ${hasLiked ? 'liked' : ''}`} onClick={() => toggleReaction(m.id)}>
+                      ❤️ {msgReactions.length > 0 && <span>{msgReactions.length}</span>}
+                    </button>
+                  </div>
                 </div>
-                {m.text && <p>{m.text}</p>}
-                {m.image_url && (
-                  <img src={m.image_url} alt="photo" className="msg-image" loading="lazy" />
-                )}
-              </div>
-            ))}
+              )
+            })}
             <div ref={endRef} />
           </div>
         )}

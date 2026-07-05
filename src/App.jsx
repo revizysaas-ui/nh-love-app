@@ -11,6 +11,10 @@ import MapView from './components/MapView'
 import DrawingBoard from './components/DrawingBoard'
 import Games from './components/Games'
 import Widgets from './components/Widgets'
+import Stats from './components/Stats'
+import Wishlist from './components/Wishlist'
+import Counters from './components/Counters'
+import Playlist from './components/Playlist'
 import Settings from './components/Settings'
 import './index.css'
 
@@ -41,6 +45,10 @@ function AppRoutes() {
         <Route path="/dessin" element={<DrawingBoard />} />
         <Route path="/jeux" element={<Games />} />
         <Route path="/widgets" element={<Widgets />} />
+        <Route path="/stats" element={<Stats />} />
+        <Route path="/souhaits" element={<Wishlist />} />
+        <Route path="/compteurs" element={<Counters />} />
+        <Route path="/playlist" element={<Playlist />} />
         <Route path="/parametres" element={<Settings />} />
       </Route>
     </Routes>

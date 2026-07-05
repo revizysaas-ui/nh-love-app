@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Image, Camera, X, Trash2, Heart, Send, MessageCircle } from 'lucide-react'
+import { Image, Camera, FolderOpen, X, Trash2, Heart, Send, MessageCircle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useRoom } from '../context/RoomContext'
 import { notify } from '../lib/notify'
@@ -13,6 +13,7 @@ export default function Gallery() {
   const [caption, setCaption] = useState('')
   const [comments, setComments] = useState([])
   const [commentText, setCommentText] = useState('')
+  const cameraRef = useRef(null)
   const fileRef = useRef(null)
 
   useEffect(() => {
@@ -102,9 +103,13 @@ export default function Gallery() {
       <div className="page-header">
         <Image size={24} />
         <h2>Notre Galerie</h2>
-        <button className="btn-icon" onClick={() => fileRef.current?.click()} disabled={uploading}>
+        <button className="btn-icon" onClick={() => cameraRef.current?.click()} disabled={uploading}>
           <Camera size={20} />
         </button>
+        <button className="btn-icon" onClick={() => fileRef.current?.click()} disabled={uploading}>
+          <FolderOpen size={20} />
+        </button>
+        <input ref={cameraRef} type="file" accept="image/*" capture="environment" onChange={uploadPhoto} hidden />
         <input ref={fileRef} type="file" accept="image/*" onChange={uploadPhoto} hidden />
       </div>
 

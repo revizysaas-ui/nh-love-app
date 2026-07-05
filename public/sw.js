@@ -1,5 +1,5 @@
-const CACHE = 'nh-cache-v2'
-const ASSETS = ['/', '/manifest.json', '/icon-192.svg', '/icon-512.svg']
+const CACHE = 'nh-cache-v3'
+const ASSETS = ['/manifest.json', '/icon-192.svg', '/icon-512.svg']
 
 self.addEventListener('install', e => {
   e.waitUntil(
@@ -16,12 +16,16 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   if (e.request.mode === 'navigate') {
-    e.respondWith(fetch(e.request).catch(() => caches.match('/')))
+    e.respondWith(fetch(e.request))
     return
   }
   e.respondWith(
     caches.match(e.request).then(cached => cached || fetch(e.request).then(res => {
-      return caches.open(CACHE).then(c => { c.put(e.request, res.clone()); return res })
+      if (res.ok) {
+        const clone = res.clone()
+        caches.open(CACHE).then(c => c.put(e.request, clone))
+      }
+      return res
     }))
   )
 })

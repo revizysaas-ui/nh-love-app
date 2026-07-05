@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Send, MessageCircle, Heart, Trash2, Camera } from 'lucide-react'
+import { Send, MessageCircle, Heart, Trash2, Camera, FolderOpen } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useRoom } from '../context/RoomContext'
 import { notify } from '../lib/notify'
@@ -11,6 +11,7 @@ export default function Messages() {
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const endRef = useRef(null)
+  const cameraRef = useRef(null)
   const fileRef = useRef(null)
 
   useEffect(() => {
@@ -123,9 +124,13 @@ export default function Messages() {
       </div>
 
       <form className="msg-input-bar" onSubmit={sendMessage}>
-        <button type="button" className="btn-icon msg-photo-btn" onClick={() => fileRef.current?.click()} disabled={uploading}>
+        <button type="button" className="btn-icon msg-photo-btn" onClick={() => cameraRef.current?.click()} disabled={uploading}>
           <Camera size={20} />
         </button>
+        <button type="button" className="btn-icon msg-photo-btn" onClick={() => fileRef.current?.click()} disabled={uploading}>
+          <FolderOpen size={20} />
+        </button>
+        <input type="file" ref={cameraRef} accept="image/*" capture="environment" style={{ display: 'none' }} onChange={handleFile} />
         <input type="file" ref={fileRef} accept="image/*" style={{ display: 'none' }} onChange={handleFile} />
         <input
           placeholder="Écris un message..."

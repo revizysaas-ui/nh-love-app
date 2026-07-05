@@ -10,6 +10,7 @@ import Gallery from './components/Gallery'
 import MapView from './components/MapView'
 import DrawingBoard from './components/DrawingBoard'
 import Games from './components/Games'
+import Widgets from './components/Widgets'
 import Settings from './components/Settings'
 import './index.css'
 
@@ -39,6 +40,7 @@ function AppRoutes() {
         <Route path="/carte" element={<MapView />} />
         <Route path="/dessin" element={<DrawingBoard />} />
         <Route path="/jeux" element={<Games />} />
+        <Route path="/widgets" element={<Widgets />} />
         <Route path="/parametres" element={<Settings />} />
       </Route>
     </Routes>

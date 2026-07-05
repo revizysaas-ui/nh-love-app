@@ -491,6 +491,26 @@ body {
 }
 .comment-input-row input:focus { border-color: var(--ring); }
 
+/* ========== WIDGETS ========== */
+.widgets-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.widget-card {
+  display: flex; align-items: center; gap: 14px; padding: 16px;
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+}
+.widget-icon {
+  width: 44px; height: 44px; border-radius: var(--radius);
+  display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0;
+}
+.widget-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.widget-label { font-size: 12px; color: var(--muted-foreground); font-weight: 500; }
+.widget-value { font-size: 22px; font-weight: 800; color: var(--foreground); }
+.widget-desc { font-size: 15px; font-weight: 600; color: var(--foreground); line-height: 1.4; }
+.widget-thumb { width: 100%; max-height: 120px; object-fit: cover; border-radius: var(--radius); margin-top: 6px; }
+
+@media (max-width: 480px) {
+  .widgets-grid { grid-template-columns: 1fr; }
+}
+
 /* ========== GAMES ========== */
 .games-menu {
   display: flex; gap: 8px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 4px;

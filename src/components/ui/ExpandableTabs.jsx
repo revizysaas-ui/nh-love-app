@@ -1,7 +1,4 @@
-"use client";
-
-import { AnimatePresence, motion } from "framer-motion";
-import { useOnClickOutside } from "usehooks-ts";
+import { motion } from "framer-motion";
 import { useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Heart, MessageCircle, Image, MapPin, PenLine, Gamepad2 } from "lucide-react";
@@ -15,23 +12,6 @@ const tabs = [
   { title: "Jeux", icon: Gamepad2, path: "/jeux" },
 ];
 
-const buttonVariants = {
-  initial: { gap: 0, paddingLeft: ".5rem", paddingRight: ".5rem" },
-  animate: (isSelected) => ({
-    gap: isSelected ? ".5rem" : 0,
-    paddingLeft: isSelected ? "1rem" : ".5rem",
-    paddingRight: isSelected ? "1rem" : ".5rem",
-  }),
-};
-
-const spanVariants = {
-  initial: { width: 0, opacity: 0 },
-  animate: { width: "auto", opacity: 1 },
-  exit: { width: 0, opacity: 0 },
-};
-
-const transition = { delay: 0.1, type: "spring", bounce: 0, duration: 0.6 };
-
 export default function ExpandableTabs() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -39,9 +19,7 @@ export default function ExpandableTabs() {
     const idx = tabs.findIndex(t => t.path === location.pathname);
     return idx >= 0 ? idx : 0;
   });
-  const ref = useRef(null);
-
-  useOnClickOutside(ref, () => {});
+  const scrollRef = useRef(null);
 
   function handleSelect(index) {
     setSelected(index);
@@ -49,38 +27,29 @@ export default function ExpandableTabs() {
   }
 
   return (
-    <div
-      ref={ref}
-      className="expandable-tabs"
-    >
+    <div ref={scrollRef} className="expandable-tabs">
       {tabs.map((tab, index) => {
         const Icon = tab.icon;
+        const isSelected = selected === index;
         return (
           <motion.button
             key={tab.title}
-            variants={buttonVariants}
-            initial={false}
-            animate="animate"
-            custom={selected === index}
+            layout
             onClick={() => handleSelect(index)}
-            transition={transition}
-            className={`expandable-tab ${selected === index ? "selected" : ""}`}
+            className={`expandable-tab ${isSelected ? "selected" : ""}`}
+            style={{ gap: isSelected ? "0.5rem" : "0" }}
           >
-            <Icon size={20} />
-            <AnimatePresence initial={false}>
-              {selected === index && (
-                <motion.span
-                  variants={spanVariants}
-                  initial="initial"
-                  animate="animate"
-                  exit="exit"
-                  transition={transition}
-                  className="expandable-tab-label"
-                >
-                  {tab.title}
-                </motion.span>
-              )}
-            </AnimatePresence>
+            <Icon size={19} />
+            {isSelected && (
+              <motion.span
+                initial={{ width: 0, opacity: 0 }}
+                animate={{ width: "auto", opacity: 1 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+                className="expandable-tab-label"
+              >
+                {tab.title}
+              </motion.span>
+            )}
           </motion.button>
         );
       })}

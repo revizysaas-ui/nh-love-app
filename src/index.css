@@ -147,37 +147,41 @@ body {
 .expandable-tabs {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 3px;
+  gap: 2px;
   border-radius: var(--radius);
   background: var(--card);
   border: 1px solid var(--border);
   padding: 3px;
   flex: 1;
   min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
 }
+.expandable-tabs::-webkit-scrollbar { display: none; }
 
 .expandable-tab {
   position: relative;
   display: flex;
   align-items: center;
   border-radius: var(--radius);
-  padding: 8px;
-  font-size: 14px;
+  padding: 7px 10px;
+  font-size: 13px;
   font-weight: 500;
-  transition: all 0.3s;
+  transition: all 0.2s;
   border: none;
   cursor: pointer;
   background: transparent;
   color: var(--muted-foreground);
-  gap: 0;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .expandable-tab.selected {
   background: var(--secondary);
   color: var(--primary);
-  gap: 0.5rem;
-  padding-left: 1rem;
-  padding-right: 1rem;
+  padding-left: 14px;
+  padding-right: 14px;
 }
 .expandable-tab:hover:not(.selected) {
   background: var(--muted);
@@ -186,6 +190,7 @@ body {
 .expandable-tab-label {
   overflow: hidden;
   white-space: nowrap;
+  font-size: 13px;
 }
 
 /* ========== MAIN ========== */
@@ -615,11 +620,11 @@ body {
   .code-badge { font-size: 16px; letter-spacing: 2px; padding: 6px 14px; }
   .settings-card h3 { font-size: 15px; }
   .field input, .field select { font-size: 16px; padding: 10px 12px; }
-  .expandable-tab { padding: 8px; font-size: 13px; }
-  .expandable-tab.selected { padding-left: 12px; padding-right: 12px; }
-  .expandable-tabs { gap: 3px; padding: 3px; }
+  .expandable-tab { padding: 6px 8px; font-size: 12px; }
+  .expandable-tab.selected { padding-left: 10px; padding-right: 10px; }
+  .expandable-tabs { gap: 2px; padding: 2px; }
   .bottom-nav-blur { padding: 8px 10px; gap: 6px; }
-  .bottom-action-btn { width: 40px; height: 40px; }
+  .bottom-action-btn { width: 38px; height: 38px; }
   .game-card { min-height: 140px; padding: 16px 12px; }
   .game-question { font-size: 16px; }
   .modal-card { padding: 12px; }

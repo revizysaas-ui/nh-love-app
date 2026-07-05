@@ -38,12 +38,15 @@ export default function ExpandableTabs() {
             onClick={() => handleSelect(index)}
             className={`expandable-tab ${isSelected ? "selected" : ""}`}
             style={{ gap: isSelected ? "0.5rem" : "0" }}
+            whileHover={!isSelected ? { scale: 1.05 } : undefined}
+            whileTap={{ scale: 0.95 }}
           >
             <Icon size={24} />
             {isSelected && (
               <motion.span
                 initial={{ width: 0, opacity: 0 }}
                 animate={{ width: "auto", opacity: 1 }}
+                exit={{ width: 0, opacity: 0 }}
                 transition={{ duration: 0.25, ease: "easeOut" }}
                 className="expandable-tab-label"
               >

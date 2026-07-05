@@ -36,14 +36,18 @@
         if (s) s.innerHTML = '<span style="color:#666;font-size:14px;text-align:center;padding:20px">Une erreur est survenue, essaie de rouvrir l\'app</span>'
       })
       if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(function(rr) {
-          rr.forEach(function(r) { r.unregister() })
-        }).catch(function(){})
-      }
-      if (window.caches) {
-        caches.keys().then(function(ks) {
-          ks.forEach(function(k) { caches.delete(k) })
-        }).catch(function(){})
+        navigator.serviceWorker.register('/sw.js')
+        if (!sessionStorage.getItem('sw')) {
+          sessionStorage.setItem('sw', '1')
+          navigator.serviceWorker.getRegistrations().then(function(rr) {
+            rr.forEach(function(r) { r.unregister() })
+          }).catch(function(){})
+          if (window.caches) {
+            caches.keys().then(function(ks) {
+              ks.forEach(function(k) { caches.delete(k) })
+            }).catch(function(){})
+          }
+        }
       }
     </script>
   </body>

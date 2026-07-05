@@ -31,8 +31,19 @@
     </div>
     <script type="module" src="/src/main.jsx"></script>
     <script>
+      window.addEventListener('error', function() {
+        var s = document.getElementById('splash')
+        if (s) s.innerHTML = '<span style="color:#666;font-size:14px;text-align:center;padding:20px">Une erreur est survenue, essaie de rouvrir l\'app</span>'
+      })
       if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js')
+        navigator.serviceWorker.getRegistrations().then(function(rr) {
+          rr.forEach(function(r) { r.unregister() })
+        }).catch(function(){})
+      }
+      if (window.caches) {
+        caches.keys().then(function(ks) {
+          ks.forEach(function(k) { caches.delete(k) })
+        }).catch(function(){})
       }
     </script>
   </body>

@@ -29,13 +29,13 @@ export default function Layout() {
       <div className="bottom-nav-blur">
         <div className="bottom-actions">
           <button className="bottom-action-btn" onClick={() => setDark(!dark)} title={dark ? 'Mode clair' : 'Mode sombre'}>
-            {dark ? <Sun size={18} /> : <Moon size={18} />}
+            {dark ? <Sun size={22} /> : <Moon size={22} />}
           </button>
         </div>
         <ExpandableTabs />
         <div className="bottom-actions right">
           <button className="bottom-action-btn" onClick={leaveRoom} title="Changer d'espace">
-            <LogOut size={18} />
+            <LogOut size={22} />
           </button>
         </div>
       </div>

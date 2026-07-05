@@ -39,7 +39,7 @@ export default function ExpandableTabs() {
             className={`expandable-tab ${isSelected ? "selected" : ""}`}
             style={{ gap: isSelected ? "0.5rem" : "0" }}
           >
-            <Icon size={19} />
+            <Icon size={24} />
             {isSelected && (
               <motion.span
                 initial={{ width: 0, opacity: 0 }}

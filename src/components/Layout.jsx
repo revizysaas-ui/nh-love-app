@@ -1,6 +1,6 @@
 import { Outlet, NavLink } from 'react-router-dom'
 import { Settings, Sun, Moon, LogOut } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRoom } from '../context/RoomContext'
 import ExpandableTabs from './ui/ExpandableTabs'
 
@@ -22,7 +22,9 @@ export default function Layout() {
       </header>
 
       <main className="main-content">
-        <Outlet />
+        <Suspense fallback={null}>
+          <Outlet />
+        </Suspense>
       </main>
 
       <div className="bottom-nav-blur">

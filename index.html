@@ -22,13 +22,12 @@
     </style>
   </head>
   <body>
-    <div id="root">
-      <div id="splash">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
-        <span>N&amp;H</span>
-        <div class="loader"></div>
-      </div>
+    <div id="splash">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+      <span>N&amp;H</span>
+      <div class="loader"></div>
     </div>
+    <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
     <script>
       var t = 0
@@ -36,31 +35,29 @@
         t++; if (t >= 5) { t = 0; var s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/eruda'; document.body.appendChild(s); s.onload = function() { eruda.init() } }
       })
       window.addEventListener('error', function(e) {
+        var msg = e.message || ''
+        if (e.filename) msg += ' [' + e.filename.split('/').pop() + ']'
         var s = document.getElementById('splash')
-        if (s) s.innerHTML = '<span style="color:#666;font-size:14px;text-align:center;padding:20px">Erreur : ' + (e.message || e.filename || 'inconnue') + '</span>'
+        if (s) s.innerHTML = '<span style="color:#666;font-size:14px;text-align:center;padding:20px">⚠ ' + msg.slice(0, 100) + '</span>'
       })
       window.addEventListener('unhandledrejection', function(e) {
         var s = document.getElementById('splash')
-        if (s) s.innerHTML = '<span style="color:#666;font-size:14px;text-align:center;padding:20px">Erreur : ' + (e.reason || 'promesse') + '</span>'
+        if (s) s.innerHTML = '<span style="color:#666;font-size:14px;text-align:center;padding:20px">⚠ ' + String(e.reason).slice(0, 100) + '</span>'
       })
       setTimeout(function() {
         var s = document.getElementById('splash')
         if (s && s.style.display !== 'none' && !document.querySelector('#root > *:not(#splash)')) {
-          s.innerHTML = '<span style="color:#666;font-size:14px;text-align:center;padding:20px">L\'app n\'a pas pu se charger (timeout). Essaie de rouvrir.</span>'
+          s.innerHTML = '<span style="color:#666;font-size:14px;text-align:center;padding:20px">⚠ L\'app n\'a pas pu se charger (15s). Essaie de rouvrir.</span>'
         }
       }, 15000)
       if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js')
-        if (!sessionStorage.getItem('sw')) {
-          sessionStorage.setItem('sw', '1')
-          navigator.serviceWorker.getRegistrations().then(function(rr) {
-            rr.forEach(function(r) { r.unregister() })
+        navigator.serviceWorker.getRegistrations().then(function(rr) {
+          rr.forEach(function(r) { r.unregister() })
+        }).catch(function(){})
+        if (window.caches) {
+          caches.keys().then(function(ks) {
+            ks.forEach(function(k) { caches.delete(k) })
           }).catch(function(){})
-          if (window.caches) {
-            caches.keys().then(function(ks) {
-              ks.forEach(function(k) { caches.delete(k) })
-            }).catch(function(){})
-          }
         }
       }
     </script>

@@ -1,21 +1,23 @@
-import { useEffect } from 'react'
+import { useEffect, lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { RoomProvider, useRoom } from './context/RoomContext'
 import { NotificationProvider, useNotifications } from './context/NotificationContext'
+import ErrorBoundary from './components/ErrorBoundary'
 import Layout from './components/Layout'
 import Join from './components/Join'
 import Home from './components/Home'
-import Messages from './components/Messages'
-import Gallery from './components/Gallery'
-import MapView from './components/MapView'
-import DrawingBoard from './components/DrawingBoard'
-import Games from './components/Games'
-import Widgets from './components/Widgets'
-import Stats from './components/Stats'
-import Wishlist from './components/Wishlist'
-import Counters from './components/Counters'
-import Playlist from './components/Playlist'
 import Settings from './components/Settings'
+
+const Messages = lazy(() => import('./components/Messages'))
+const Gallery = lazy(() => import('./components/Gallery'))
+const MapView = lazy(() => import('./components/MapView'))
+const DrawingBoard = lazy(() => import('./components/DrawingBoard'))
+const Games = lazy(() => import('./components/Games'))
+const Widgets = lazy(() => import('./components/Widgets'))
+const Stats = lazy(() => import('./components/Stats'))
+const Wishlist = lazy(() => import('./components/Wishlist'))
+const Counters = lazy(() => import('./components/Counters'))
+const Playlist = lazy(() => import('./components/Playlist'))
 import './index.css'
 
 function ProtectedRoute({ children }) {

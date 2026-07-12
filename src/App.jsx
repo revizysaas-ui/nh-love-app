@@ -67,10 +67,12 @@ export default function App() {
     }
   }, [])
   return (
-    <RoomProvider>
-      <NotificationProvider>
-        <AppRoutes />
-      </NotificationProvider>
-    </RoomProvider>
+    <ErrorBoundary>
+      <RoomProvider>
+        <NotificationProvider>
+          <AppRoutes />
+        </NotificationProvider>
+      </RoomProvider>
+    </ErrorBoundary>
   )
 }

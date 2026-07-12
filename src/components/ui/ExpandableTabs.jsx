@@ -1,4 +1,3 @@
-import { motion } from "framer-motion";
 import { useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Heart, MessageCircle, Image, MapPin, PenLine, Gamepad2 } from "lucide-react";
@@ -32,28 +31,15 @@ export default function ExpandableTabs() {
         const Icon = tab.icon;
         const isSelected = selected === index;
         return (
-          <motion.button
+          <button
             key={tab.title}
-            layout
             onClick={() => handleSelect(index)}
             className={`expandable-tab ${isSelected ? "selected" : ""}`}
             style={{ gap: isSelected ? "0.5rem" : "0" }}
-            whileHover={!isSelected ? { scale: 1.05 } : undefined}
-            whileTap={{ scale: 0.95 }}
           >
             <Icon size={24} />
-            {isSelected && (
-              <motion.span
-                initial={{ width: 0, opacity: 0 }}
-                animate={{ width: "auto", opacity: 1 }}
-                exit={{ width: 0, opacity: 0 }}
-                transition={{ duration: 0.25, ease: "easeOut" }}
-                className="expandable-tab-label"
-              >
-                {tab.title}
-              </motion.span>
-            )}
-          </motion.button>
+            {isSelected && <span className="expandable-tab-label">{tab.title}</span>}
+          </button>
         );
       })}
     </div>

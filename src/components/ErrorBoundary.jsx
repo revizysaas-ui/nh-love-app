@@ -10,20 +10,21 @@ export default class ErrorBoundary extends Component {
     return { error }
   }
 
-  componentDidCatch(error, info) {
-    console.error('ErrorBoundary caught:', error, info)
+  componentDidCatch(error) {
+    console.error('ErrorBoundary:', error)
   }
 
   render() {
     if (this.state.error) {
-      const splash = document.getElementById('splash')
-      if (splash) {
-        splash.style.display = 'flex'
-        splash.innerHTML = '<span style="color:#666;font-size:14px;text-align:center;padding:20px">⚠ Erreur de rendu. Essaie de rouvrir l\'app.</span>'
-        const root = document.getElementById('root')
-        if (root) root.innerHTML = ''
-      }
-      return null
+      return (
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', padding:20, background:'#f8f7fa', fontFamily:'-apple-system, sans-serif', textAlign:'center' }}>
+          <div>
+            <p style={{ fontSize:14, color:'#666', marginBottom:8 }}>⚠ Erreur au chargement</p>
+            <p style={{ fontSize:12, color:'#999' }}>Ferme et rouvre l'app</p>
+            <button onClick={() => window.location.reload()} style={{ marginTop:16, padding:'10px 24px', border:'none', borderRadius:8, background:'#8a79ab', color:'#fff', fontSize:14, cursor:'pointer' }}>Recharger</button>
+          </div>
+        </div>
+      )
     }
     return this.props.children
   }

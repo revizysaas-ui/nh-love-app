@@ -28,26 +28,30 @@
       <div class="loader"></div>
     </div>
     <div id="root"></div>
+    <script>document.title = 'N&H (JS OK)'</script>
     <script type="module" src="/src/main.jsx"></script>
     <script>
       var t = 0
       document.addEventListener('click', function() {
         t++; if (t >= 5) { t = 0; var s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/eruda'; document.body.appendChild(s); s.onload = function() { eruda.init() } }
       })
-      window.addEventListener('error', function(e) {
-        var msg = e.message || ''
-        if (e.filename) msg += ' [' + e.filename.split('/').pop() + ']'
+      function showError(msg) {
         var s = document.getElementById('splash')
-        if (s) s.innerHTML = '<span style="color:#666;font-size:14px;text-align:center;padding:20px">⚠ ' + msg.slice(0, 100) + '</span>'
+        var r = document.getElementById('root')
+        var h = '<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px;background:#f8f7fa;font-family:-apple-system,sans-serif;text-align:center"><div><p style="font-size:14px;color:#666;margin-bottom:8px">⚠ ' + msg + '</p><p style="font-size:12px;color:#999">Ferme et rouvre l\'app</p></div></div>'
+        if (s) { s.innerHTML = h; s.style.display = 'flex' }
+        else if (r) r.innerHTML = h
+      }
+      window.addEventListener('error', function(e) {
+        showError((e.error && e.error.message ? e.error.message : e.message || 'Erreur').slice(0,80))
       })
       window.addEventListener('unhandledrejection', function(e) {
-        var s = document.getElementById('splash')
-        if (s) s.innerHTML = '<span style="color:#666;font-size:14px;text-align:center;padding:20px">⚠ ' + String(e.reason).slice(0, 100) + '</span>'
+        showError(String(e.reason).slice(0,80))
       })
       setTimeout(function() {
         var s = document.getElementById('splash')
-        if (s && s.style.display !== 'none' && !document.querySelector('#root > *:not(#splash)')) {
-          s.innerHTML = '<span style="color:#666;font-size:14px;text-align:center;padding:20px">⚠ L\'app n\'a pas pu se charger (15s). Essaie de rouvrir.</span>'
+        if (s && !s.innerHTML.includes('Erreur') && !document.querySelector('#root > div')) {
+          showError('L\'app n\'a pas pu se charger')
         }
       }, 15000)
       if ('serviceWorker' in navigator) {

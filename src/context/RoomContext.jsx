@@ -5,7 +5,7 @@ const RoomContext = createContext(null)
 
 export function RoomProvider({ children }) {
   const [room, setRoom] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(() => !!localStorage.getItem('nh_room'))
   const [username, setUsernameState] = useState(() => localStorage.getItem('nh_username') || '')
 
   const setUsername = useCallback((name) => {

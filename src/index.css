@@ -230,8 +230,8 @@ body {
 
 /* ========== JOIN ========== */
 .join-page {
-  min-height: 100vh; display: flex; align-items: center; justify-content: center;
-  padding: 20px; background: linear-gradient(135deg, var(--background) 0%, var(--secondary) 100%);
+  min-height: 100dvh; display: flex; align-items: center; justify-content: center;
+  padding: 20px; background: linear-gradient(135deg, #f0ecf7 0%, #e5dff0 100%);
 }
 .join-card {
   background: var(--card); border-radius: calc(var(--radius) * 2); padding: 32px 24px;

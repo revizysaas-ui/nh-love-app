@@ -3,6 +3,7 @@ import { Image, Camera, FolderOpen, X, Trash2, Heart, Send, MessageCircle, Uploa
 import { supabase } from '../lib/supabase'
 import { useRoom } from '../context/RoomContext'
 import { notify } from '../lib/notify'
+import SecureImage from './ui/SecureImage'
 
 const SENSITIVE_EMOJIS = ['🎂', '🔒', '🙈', '🎁', '💝', '💐', '🌸', '🦋', '✨', '💫']
 
@@ -366,12 +367,20 @@ export default function Gallery() {
                 className={`gallery-item ${isSensitive ? 'gallery-item-sensitive' : ''} ${isRevealed ? 'revealed' : ''}`}
                 onClick={() => isSensitive && !isRevealed ? handleSensitiveGridClick(p) : openPhoto(p)}
               >
-                <img
-                  src={url}
-                  alt={p.caption || ''}
-                  loading="lazy"
-                  style={isSensitive && !isRevealed ? { filter: 'blur(20px)' } : {}}
-                />
+                {isSensitive ? (
+                  <SecureImage
+                    url={url}
+                    alt={p.caption || ''}
+                    loading="lazy"
+                    style={isSensitive && !isRevealed ? { filter: 'blur(20px)' } : {}}
+                  />
+                ) : (
+                  <img
+                    src={url}
+                    alt={p.caption || ''}
+                    loading="lazy"
+                  />
+                )}
                 {isSensitive && !isRevealed && (
                   <div className="sensitive-overlay">
                     <span className="sensitive-emoji-display">{p.sensitive_emoji || '🎂'}</span>
@@ -461,8 +470,8 @@ export default function Gallery() {
             <div className="gallery-modal-image-wrapper">
               {selected.sensitive && !revealedModal ? (
                 <div className="gallery-modal-sensitive" onClick={handleModalSensitiveClick}>
-                  <img
-                    src={getPhotoUrl(selected.storage_path)}
+                  <SecureImage
+                    url={getPhotoUrl(selected.storage_path)}
                     alt={selected.caption || ''}
                     className="modal-img"
                     style={{ filter: 'blur(25px)' }}
@@ -476,6 +485,12 @@ export default function Gallery() {
                     </p>
                   </div>
                 </div>
+              ) : selected.sensitive ? (
+                <SecureImage
+                  url={getPhotoUrl(selected.storage_path)}
+                  alt={selected.caption || ''}
+                  className="modal-img"
+                />
               ) : (
                 <img
                   src={getPhotoUrl(selected.storage_path)}

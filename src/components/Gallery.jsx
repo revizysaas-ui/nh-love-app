@@ -116,15 +116,17 @@ export default function Gallery() {
 
   async function toggleSensitive(photo) {
     const newValue = !photo.sensitive
-    if (newValue && !sensitiveCode.trim()) return
+    const code = sensitiveCode.trim() || photo.sensitive_code || null
+    if (newValue && !code) return
+    const emoji = newValue ? (sensitiveEmoji || photo.sensitive_emoji || '🎂') : null
     await supabase.from('photos').update({
       sensitive: newValue,
-      sensitive_emoji: newValue ? sensitiveEmoji : null,
-      sensitive_code: newValue ? sensitiveCode.trim() : null,
+      sensitive_emoji: emoji,
+      sensitive_code: newValue ? code : null,
     }).eq('id', photo.id)
-    setPhotos(prev => prev.map(p => p.id === photo.id ? { ...p, sensitive: newValue, sensitive_emoji: newValue ? sensitiveEmoji : null, sensitive_code: newValue ? sensitiveCode.trim() : null } : p))
+    setPhotos(prev => prev.map(p => p.id === photo.id ? { ...p, sensitive: newValue, sensitive_emoji: emoji, sensitive_code: newValue ? code : null } : p))
     if (selected?.id === photo.id) {
-      setSelected(prev => ({ ...prev, sensitive: newValue, sensitive_emoji: newValue ? sensitiveEmoji : null, sensitive_code: newValue ? sensitiveCode.trim() : null }))
+      setSelected(prev => ({ ...prev, sensitive: newValue, sensitive_emoji: emoji, sensitive_code: newValue ? code : null }))
     }
   }
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Image, Camera, FolderOpen, X, Trash2, Heart, Send, MessageCircle, Upload, Eye, EyeOff, Shield } from 'lucide-react'
+import { Image, Camera, FolderOpen, X, Trash2, Heart, Send, MessageCircle, Upload, Eye, EyeOff, Shield, Lock, KeyRound } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useRoom } from '../context/RoomContext'
 import { notify } from '../lib/notify'
@@ -24,10 +24,16 @@ export default function Gallery() {
   const [commentText, setCommentText] = useState('')
   const [sensitive, setSensitive] = useState(false)
   const [sensitiveEmoji, setSensitiveEmoji] = useState('🎂')
+  const [sensitiveCode, setSensitiveCode] = useState('')
   const [revealedPhotos, setRevealedPhotos] = useState({})
   const [revealedModal, setRevealedModal] = useState(false)
+  const [pinModalPhoto, setPinModalPhoto] = useState(null)
+  const [pinInput, setPinInput] = useState('')
+  const [pinError, setPinError] = useState(false)
+  const [pinErrorGrid, setPinErrorGrid] = useState(false)
   const cameraRef = useRef(null)
   const fileRef = useRef(null)
+  const pinInputRef = useRef(null)
 
   useEffect(() => {
     if (!room) return
@@ -38,6 +44,12 @@ export default function Gallery() {
       .subscribe()
     return () => supabase.removeChannel(sub)
   }, [room])
+
+  useEffect(() => {
+    if (pinModalPhoto) {
+      setTimeout(() => pinInputRef.current?.focus(), 100)
+    }
+  }, [pinModalPhoto])
 
   async function loadPhotos() {
     const { data } = await supabase
@@ -60,6 +72,7 @@ export default function Gallery() {
 
   async function uploadPhoto() {
     if (!selectedFile) return
+    if (sensitive && !sensitiveCode.trim()) return
     setUploading(true)
     const ext = selectedFile.name.split('.').pop()
     const path = `${room.id}/${Date.now()}.${ext}`
@@ -75,6 +88,7 @@ export default function Gallery() {
       caption: caption.trim(),
       sensitive,
       sensitive_emoji: sensitive ? sensitiveEmoji : null,
+      sensitive_code: sensitive ? sensitiveCode.trim() : null,
     })
     setCaption('')
     setSelectedFile(null)
@@ -82,6 +96,7 @@ export default function Gallery() {
     setShowUpload(false)
     setSensitive(false)
     setSensitiveEmoji('🎂')
+    setSensitiveCode('')
     setUploading(false)
     notify(room.id, 'photo', sensitive ? 'a ajouté une photo sensible 🔒' : 'a ajouté une photo à la galerie 📸', username)
   }
@@ -92,6 +107,7 @@ export default function Gallery() {
     setPhotos(prev => prev.filter(p => p.id !== photo.id))
     setSelected(null)
     setRevealedModal(false)
+    setPinModalPhoto(null)
   }
 
   async function saveCaption(id) {
@@ -100,13 +116,15 @@ export default function Gallery() {
 
   async function toggleSensitive(photo) {
     const newValue = !photo.sensitive
+    if (newValue && !sensitiveCode.trim()) return
     await supabase.from('photos').update({
       sensitive: newValue,
       sensitive_emoji: newValue ? sensitiveEmoji : null,
+      sensitive_code: newValue ? sensitiveCode.trim() : null,
     }).eq('id', photo.id)
-    setPhotos(prev => prev.map(p => p.id === photo.id ? { ...p, sensitive: newValue, sensitive_emoji: newValue ? sensitiveEmoji : null } : p))
+    setPhotos(prev => prev.map(p => p.id === photo.id ? { ...p, sensitive: newValue, sensitive_emoji: newValue ? sensitiveEmoji : null, sensitive_code: newValue ? sensitiveCode.trim() : null } : p))
     if (selected?.id === photo.id) {
-      setSelected(prev => ({ ...prev, sensitive: newValue, sensitive_emoji: newValue ? sensitiveEmoji : null }))
+      setSelected(prev => ({ ...prev, sensitive: newValue, sensitive_emoji: newValue ? sensitiveEmoji : null, sensitive_code: newValue ? sensitiveCode.trim() : null }))
     }
   }
 
@@ -139,6 +157,64 @@ export default function Gallery() {
     setCommentText('')
     setRevealedModal(false)
     loadComments(p.id)
+  }
+
+  function handleSensitiveGridClick(photo) {
+    if (!photo.sensitive_code) {
+      revealPhoto(photo.id)
+      return
+    }
+    setPinModalPhoto(photo)
+    setPinInput('')
+    setPinErrorGrid(false)
+  }
+
+  function verifyPinGrid() {
+    if (!pinModalPhoto) return
+    if (pinInput.trim() === pinModalPhoto.sensitive_code) {
+      revealPhoto(pinModalPhoto.id)
+      setPinModalPhoto(null)
+      setPinInput('')
+    } else {
+      setPinErrorGrid(true)
+      setPinInput('')
+      setTimeout(() => setPinErrorGrid(false), 2000)
+    }
+  }
+
+  function handleModalSensitiveClick() {
+    if (!selected?.sensitive_code) {
+      setRevealedModal(true)
+      return
+    }
+    setPinModalPhoto(selected)
+    setPinInput('')
+    setPinError(false)
+  }
+
+  function verifyPinModal() {
+    if (!pinModalPhoto) return
+    if (pinInput.trim() === pinModalPhoto.sensitive_code) {
+      if (selected?.id === pinModalPhoto.id) {
+        setRevealedModal(true)
+      } else {
+        revealPhoto(pinModalPhoto.id)
+      }
+      setPinModalPhoto(null)
+      setPinInput('')
+    } else {
+      setPinError(true)
+      setPinInput('')
+      setTimeout(() => setPinError(false), 2000)
+    }
+  }
+
+  function verifyPin() {
+    if (selected && selected.id === pinModalPhoto?.id) {
+      verifyPinModal()
+    } else {
+      verifyPinGrid()
+    }
   }
 
   function revealPhoto(id) {
@@ -205,23 +281,41 @@ export default function Gallery() {
             </button>
           </div>
 
-          {/* Emoji picker for sensitive */}
+          {/* Emoji picker + PIN for sensitive */}
           {sensitive && (
-            <div className="sensitive-emoji-picker">
-              <span className="sensitive-emoji-label">Choisir un emoji de couverture :</span>
-              <div className="sensitive-emoji-grid">
-                {SENSITIVE_EMOJIS.map(em => (
-                  <button
-                    key={em}
-                    className={`sensitive-emoji-btn ${sensitiveEmoji === em ? 'active' : ''}`}
-                    onClick={() => setSensitiveEmoji(em)}
-                    type="button"
-                  >
-                    {em}
-                  </button>
-                ))}
+            <>
+              <div className="sensitive-emoji-picker">
+                <span className="sensitive-emoji-label">Emoji de couverture :</span>
+                <div className="sensitive-emoji-grid">
+                  {SENSITIVE_EMOJIS.map(em => (
+                    <button
+                      key={em}
+                      className={`sensitive-emoji-btn ${sensitiveEmoji === em ? 'active' : ''}`}
+                      onClick={() => setSensitiveEmoji(em)}
+                      type="button"
+                    >
+                      {em}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+              <div className="sensitive-code-input-row">
+                <KeyRound size={16} />
+                <input
+                  type="password"
+                  placeholder="Code secret pour débloquer la photo..."
+                  value={sensitiveCode}
+                  onChange={e => setSensitiveCode(e.target.value)}
+                  maxLength={20}
+                />
+                {sensitiveCode && (
+                  <button className="btn-icon" onClick={() => setSensitiveCode('')} type="button">
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+              <span className="sensitive-code-hint">Seules les personnes connaissant ce code pourront voir la photo.</span>
+            </>
           )}
 
           <div className="gallery-upload-actions">
@@ -229,7 +323,12 @@ export default function Gallery() {
               <Image size={16} />
               {selectedFile ? 'Changer' : 'Choisir une photo'}
             </button>
-            <button className="btn btn-primary" style={{ flex: 1 }} onClick={uploadPhoto} disabled={!selectedFile || uploading}>
+            <button
+              className="btn btn-primary"
+              style={{ flex: 1 }}
+              onClick={uploadPhoto}
+              disabled={!selectedFile || uploading || (sensitive && !sensitiveCode.trim())}
+            >
               {uploading ? 'Envoi...' : 'Partager'}
             </button>
           </div>
@@ -263,7 +362,7 @@ export default function Gallery() {
               <div
                 key={p.id}
                 className={`gallery-item ${isSensitive ? 'gallery-item-sensitive' : ''} ${isRevealed ? 'revealed' : ''}`}
-                onClick={() => isSensitive && !isRevealed ? revealPhoto(p.id) : openPhoto(p)}
+                onClick={() => isSensitive && !isRevealed ? handleSensitiveGridClick(p) : openPhoto(p)}
               >
                 <img
                   src={url}
@@ -274,9 +373,10 @@ export default function Gallery() {
                 {isSensitive && !isRevealed && (
                   <div className="sensitive-overlay">
                     <span className="sensitive-emoji-display">{p.sensitive_emoji || '🎂'}</span>
+                    {p.sensitive_code && <Lock size={16} className="sensitive-lock-icon" />}
                     <span className="sensitive-label">Photo sensible</span>
-                    <button className="sensitive-reveal-btn" onClick={(e) => { e.stopPropagation(); revealPhoto(p.id) }}>
-                      <Eye size={16} /> Voir
+                    <button className="sensitive-reveal-btn" onClick={(e) => { e.stopPropagation(); handleSensitiveGridClick(p) }}>
+                      <KeyRound size={14} /> Débloquer
                     </button>
                   </div>
                 )}
@@ -295,13 +395,49 @@ export default function Gallery() {
         </div>
       )}
 
+      {/* PIN Modal (shared for grid + modal) */}
+      {pinModalPhoto && (
+        <div className="modal-overlay" onClick={() => setPinModalPhoto(null)}>
+          <div className="modal-card pin-modal" onClick={e => e.stopPropagation()}>
+            <div className="pin-modal-icon">
+              <Lock size={32} />
+            </div>
+            <h3>Photo verrouillée</h3>
+            <p>Entrez le code secret pour voir cette photo</p>
+            <div className="pin-input-wrapper">
+              <input
+                ref={pinInputRef}
+                type="password"
+                inputMode="numeric"
+                placeholder="••••"
+                value={pinInput}
+                onChange={e => { setPinInput(e.target.value); setPinError(false); setPinErrorGrid(false) }}
+                onKeyDown={e => e.key === 'Enter' && verifyPin()}
+                className={`pin-input ${pinError || pinErrorGrid ? 'pin-error' : ''}`}
+                maxLength={20}
+                autoFocus
+              />
+            </div>
+            {(pinError || pinErrorGrid) && (
+              <p className="pin-error-text">Code incorrect. Réessayez.</p>
+            )}
+            <div className="pin-modal-actions">
+              <button className="btn btn-secondary" onClick={() => setPinModalPhoto(null)}>Annuler</button>
+              <button className="btn btn-primary" onClick={verifyPin} disabled={!pinInput.trim()}>
+                <KeyRound size={16} /> Débloquer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {selected && (
         <div className="modal-overlay" onClick={() => { setSelected(null); setRevealedModal(false) }}>
           <div className="modal-card gallery-modal" onClick={e => e.stopPropagation()}>
             <div className="gallery-modal-header">
               <button
                 className="gallery-modal-close"
-                style={selected.sensitive ? { color: selected.sensitive ? 'var(--romantic)' : undefined } : {}}
+                style={selected.sensitive ? { color: 'var(--romantic)' } : {}}
                 onClick={() => toggleSensitive(selected)}
                 title={selected.sensitive ? 'Retirer le flou' : 'Rendre sensible'}
               >
@@ -318,7 +454,7 @@ export default function Gallery() {
             {/* Modal image with sensitive handling */}
             <div className="gallery-modal-image-wrapper">
               {selected.sensitive && !revealedModal ? (
-                <div className="gallery-modal-sensitive" onClick={() => setRevealedModal(true)}>
+                <div className="gallery-modal-sensitive" onClick={handleModalSensitiveClick}>
                   <img
                     src={getPhotoUrl(selected.storage_path)}
                     alt={selected.caption || ''}
@@ -327,8 +463,11 @@ export default function Gallery() {
                   />
                   <div className="gallery-modal-sensitive-overlay">
                     <span style={{ fontSize: 56 }}>{selected.sensitive_emoji || '🎂'}</span>
+                    {selected.sensitive_code && <Lock size={20} style={{ color: 'white', marginTop: 8 }} />}
                     <p style={{ color: 'white', fontWeight: 600, marginTop: 8, fontSize: 15 }}>Photo sensible</p>
-                    <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, marginTop: 4 }}>Appuyez pour révéler</p>
+                    <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, marginTop: 4 }}>
+                      {selected.sensitive_code ? 'Entrez le code pour révéler' : 'Appuyez pour révéler'}
+                    </p>
                   </div>
                 </div>
               ) : (
@@ -343,7 +482,8 @@ export default function Gallery() {
             {selected.sensitive && revealedModal && (
               <div className="gallery-modal-sensitive-info">
                 <Shield size={14} />
-                <span>Photo marquée comme sensible</span>
+                <span>Photo sensible</span>
+                {selected.sensitive_code && <Lock size={12} />}
                 <button className="btn-icon" onClick={() => setRevealedModal(false)}>
                   <EyeOff size={14} />
                 </button>

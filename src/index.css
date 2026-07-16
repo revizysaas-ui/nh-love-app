@@ -1187,6 +1187,71 @@ body {
   font-size: 12px; font-weight: 600; color: var(--foreground);
 }
 .gallery-modal-sensitive-info .btn-icon { margin-left: auto; }
+.sensitive-lock-icon { color: white; margin-top: 6px; opacity: 0.8; }
+
+/* Sensitive code input at upload */
+.sensitive-code-input-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px; border: 2px solid var(--input); border-radius: var(--radius);
+  background: var(--card); transition: all 0.2s;
+}
+.sensitive-code-input-row:focus-within { border-color: var(--ring); box-shadow: 0 0 0 3px rgba(138, 121, 171, 0.1); }
+.sensitive-code-input-row svg { color: var(--muted-foreground); flex-shrink: 0; }
+.sensitive-code-input-row input {
+  flex: 1; border: none; outline: none; font-size: 15px; font-family: inherit;
+  background: transparent; color: var(--foreground); letter-spacing: 1px;
+}
+.sensitive-code-hint {
+  font-size: 12px; color: var(--muted-foreground); font-style: italic;
+  margin-top: -4px;
+}
+
+/* PIN Modal */
+.pin-modal {
+  text-align: center; padding: 32px 24px; max-width: 340px;
+}
+.pin-modal-icon {
+  width: 64px; height: 64px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: var(--primary-foreground);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 16px;
+  box-shadow: 0 4px 16px rgba(138, 121, 171, 0.3);
+}
+.pin-modal h3 {
+  font-size: 20px; font-weight: 700; margin-bottom: 6px; color: var(--foreground);
+}
+.pin-modal p {
+  font-size: 14px; color: var(--muted-foreground); margin-bottom: 20px;
+}
+.pin-input-wrapper {
+  display: flex; justify-content: center; margin-bottom: 12px;
+}
+.pin-input {
+  width: 100%; padding: 14px 18px; border: 2px solid var(--input);
+  border-radius: var(--radius); font-size: 20px; font-weight: 700;
+  text-align: center; letter-spacing: 6px; outline: none; font-family: inherit;
+  background: var(--card); color: var(--foreground); transition: all 0.2s;
+}
+.pin-input:focus { border-color: var(--ring); box-shadow: 0 0 0 3px rgba(138, 121, 171, 0.1); }
+.pin-input.pin-error {
+  border-color: var(--destructive);
+  box-shadow: 0 0 0 3px rgba(231, 76, 111, 0.15);
+  animation: shake 0.4s ease;
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+.pin-error-text {
+  color: var(--destructive) !important; font-size: 13px !important;
+  font-weight: 600; margin-bottom: 12px !important;
+}
+.pin-modal-actions {
+  display: flex; gap: 10px; justify-content: center;
+}
+.pin-modal-actions .btn { min-width: 120px; }
 
 /* ========== DRAWING (NEW) ========== */
 .draw-toolbar {

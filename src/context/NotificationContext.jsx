@@ -11,6 +11,8 @@ const ICONS = {
   default: Heart,
 }
 
+const hasNotification = typeof Notification !== 'undefined'
+
 export function NotificationProvider({ children }) {
   const [toasts, setToasts] = useState([])
   const [roomId, setRoomId] = useState(null)
@@ -25,7 +27,7 @@ export function NotificationProvider({ children }) {
       }, payload => {
         const n = payload.new
         showToast(n.type, n.message, n.author)
-        if (Notification.permission === 'granted' && document.hidden) {
+        if (hasNotification && Notification.permission === 'granted' && document.hidden) {
           new Notification('N&H - ' + n.author, { body: n.message, icon: '/icon-192.svg' })
         }
       })
@@ -34,8 +36,8 @@ export function NotificationProvider({ children }) {
   }, [roomId])
 
   useEffect(() => {
-    if (Notification.permission === 'default') {
-      Notification.requestPermission()
+    if (hasNotification && Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {})
     }
   }, [])
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Gamepad2, Heart, Sparkles, Shuffle, RotateCcw, AlertCircle, HelpCircle, MessageCircle, Target, BookOpen, Camera, Send, CheckCircle2, XCircle, UserCheck, Cherry, Grid3X3 } from 'lucide-react'
+import { Gamepad2, Heart, Sparkles, Shuffle, RotateCcw, AlertCircle, HelpCircle, MessageCircle, Target, BookOpen, Camera, Send, CheckCircle2, XCircle, UserCheck, Cherry, Grid3X3, ArrowLeft } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useRoom } from '../context/RoomContext'
 import { notify } from '../lib/notify'
@@ -8,14 +8,28 @@ import { getDailyQuestion } from '../data/daily-questions'
 import CULTURE_QUESTIONS from '../data/culture-questions'
 import DEFIS_DATA from '../data/defis'
 
-const GAMES = [
-  { key: 'truthdare', icon: Sparkles, label: 'Vérité ou Action' },
-  { key: 'quiz', icon: HelpCircle, label: 'Quiz Amour' },
-  { key: 'daily', icon: MessageCircle, label: 'Question du Jour' },
-  { key: 'defis', icon: Target, label: 'Défis' },
-  { key: 'culture', icon: BookOpen, label: 'Culture G' },
-  { key: 'roue', icon: Cherry, label: 'Roue de la Chance' },
-  { key: 'morpion', icon: Grid3X3, label: 'Morpion' },
+const GAMES_LIST = [
+  { key: 'truthdare', icon: Heart, label: 'Vérité ou Action', color: '#e74c8b', desc: 'Osez tout vous dire !' },
+  { key: 'quiz', icon: HelpCircle, label: 'Quiz Amour', color: '#8a79ab', desc: 'Combien vous connaissez-vous ?' },
+  { key: 'daily', icon: Sparkles, label: 'Question du Jour', color: '#d4a843', desc: 'Un moment de partage quotidien' },
+  { key: 'defis', icon: Target, label: 'Défis', color: '#e74c3c', desc: 'Relevez des défis ensemble !' },
+  { key: 'culture', icon: BookOpen, label: 'Culture G', color: '#4a90d9', desc: 'Culture générale en duo' },
+  { key: 'roue', icon: Cherry, label: 'Roue de la Chance', color: '#34d399', desc: 'Laissez le hasard décider' },
+  { key: 'morpion', icon: Grid3X3, label: 'Morpion', color: '#22d3ee', desc: 'Le classique revisité' },
+  { key: 'preferes', icon: Gamepad2, label: 'Tu Préfères', color: '#f97316', desc: 'Choix impossibles en couple' },
+]
+
+const WYR_QUESTIONS = [
+  { a: "Pouvoir se téléporter l'un chez l'autre", b: "Avoir un revenu infini pour se voir" },
+  { a: "Vivre dans la même ville", b: "Voyager le monde ensemble 3 mois/an" },
+  { a: "Se parler 24h/24 mais jamais se voir", b: "Se voir 1 semaine/an sans contact" },
+  { a: "Partager tous ses pensées", b: "Garder quelques secrets mais plus de surprises" },
+  { a: "Revivre votre premier rendez-vous", b: "Vivre votre premier rendez-vous du futur" },
+  { a: "Ne plus jamais se disputer", b: "Toujours se réconcilier immédiatement" },
+  { a: "Avoir le même prénom", b: "Avoir la même date d'anniversaire" },
+  { a: "Être célèbre ensemble", b: "Être anonymes mais infiniment heureux" },
+  { a: "Pouvoir lire les pensées de l'autre", b: "Toujours savoir exactement quoi offrir" },
+  { a: "Vivre 100 ans ensemble", b: "Vivre 10 ans intenses ensemble" },
 ]
 
 const DIFFICULTIES = [
@@ -23,6 +37,8 @@ const DIFFICULTIES = [
   { key: 'medium', label: 'Épicé', emoji: '🌶️', color: '#f59e0b' },
   { key: 'hot', label: 'Chaud', emoji: '🔥', color: '#ef4444' },
 ]
+
+const ROULETTE_COLORS = ['#8a79ab', '#e8b4c8', '#c4a8d8', '#b8a5d4', '#d47a9e', '#9b8ec4', '#f0a0c0', '#a690c0', '#d4b0d0', '#c090b0', '#e0a0d0', '#b0a0d0']
 
 function TruthOrDare() {
   const [questions, setQuestions] = useState([])
@@ -51,9 +67,9 @@ function TruthOrDare() {
       }
       return
     }
-    const pick = filtered[Math.floor(Math.random() * filtered.length)]
-    setCurrent(pick)
-    setUsed(prev => new Set([...prev, pick.id]))
+    const p = filtered[Math.floor(Math.random() * filtered.length)]
+    setCurrent(p)
+    setUsed(prev => new Set([...prev, p.id]))
     setRevealed(false)
   }
 
@@ -380,14 +396,12 @@ function DailyGame() {
   useEffect(() => { setQ(getDailyQuestion()) }, [])
 
   return (
-    <>
-      <div className="game-card-wrapper">
-        <div className="game-card revealed" style={{ cursor: 'default', maxWidth: 440 }}>
-          <MessageCircle size={32} />
-          <p className="game-question" style={{ textAlign: 'center', marginTop: 12 }}>{q}</p>
-        </div>
+    <div className="game-card-wrapper">
+      <div className="game-card revealed" style={{ cursor: 'default', maxWidth: 440 }}>
+        <MessageCircle size={32} />
+        <p className="game-question" style={{ textAlign: 'center', marginTop: 12 }}>{q}</p>
       </div>
-    </>
+    </div>
   )
 }
 
@@ -556,6 +570,7 @@ function RoueGame() {
   const [input, setInput] = useState('')
   const [result, setResult] = useState(null)
   const [spinning, setSpinning] = useState(false)
+  const [rotation, setRotation] = useState(0)
 
   function addChoice() {
     if (!input.trim() || choices.length >= 8) return
@@ -572,32 +587,51 @@ function RoueGame() {
     if (spinning) return
     setSpinning(true)
     setResult(null)
-    let count = 0
-    const max = 15 + Math.floor(Math.random() * 10)
-    const interval = setInterval(() => {
-      setResult(choices[Math.floor(Math.random() * choices.length)])
-      count++
-      if (count >= max) {
-        clearInterval(interval)
-        setSpinning(false)
-      }
-    }, 80)
+    const newRotation = rotation + 1440 + Math.random() * 720
+    setRotation(newRotation)
+    const selected = choices[Math.floor(Math.random() * choices.length)]
+    setTimeout(() => {
+      setResult(selected)
+      setSpinning(false)
+    }, 3000)
   }
 
   return (
     <>
       <div className="game-card-wrapper">
-        <div className="game-card revealed" style={{ cursor: 'default', maxWidth: 440 }}>
-          <Cherry size={32} />
+        <div className="game-card revealed" style={{ cursor: 'default', maxWidth: 440, flexDirection: 'column' }}>
+          <div style={{ position: 'relative', width: 200, height: 200, margin: '0 auto 16px' }}>
+            <svg viewBox="0 0 200 200" style={{ width: '100%', height: '100%', transform: `rotate(${rotation}deg)`, transition: spinning ? 'transform 3s cubic-bezier(0.17, 0.67, 0.12, 0.99)' : 'none' }}>
+              {choices.map((_, i) => {
+                const angle = (i * 360) / choices.length
+                const rad = (angle * Math.PI) / 180
+                const nextRad = ((angle + 360 / choices.length) * Math.PI) / 180
+                return (
+                  <path
+                    key={i}
+                    d={`M100,100 L${100 + 90 * Math.cos(rad)},${100 + 90 * Math.sin(rad)} A90,90 0 0,1 ${100 + 90 * Math.cos(nextRad)},${100 + 90 * Math.sin(nextRad)} Z`}
+                    fill={ROULETTE_COLORS[i % ROULETTE_COLORS.length]}
+                    stroke="white"
+                    strokeWidth="1"
+                  />
+                )
+              })}
+            </svg>
+            <div style={{ position: 'absolute', top: -4, left: '50%', transform: 'translateX(-50%)', zIndex: 10 }}>
+              <div style={{ width: 0, height: 0, borderLeft: '8px solid transparent', borderRight: '8px solid transparent', borderTop: '14px solid var(--foreground)' }} />
+            </div>
+          </div>
+
           {result ? (
-            <p className="game-question" style={{ textAlign: 'center', marginTop: 12, fontSize: 24, color: spinning ? 'var(--muted-foreground)' : 'var(--primary)' }}>
+            <p className="game-question" style={{ textAlign: 'center', fontSize: 22, color: spinning ? 'var(--muted-foreground)' : 'var(--primary)', marginBottom: 8 }}>
               {result}
             </p>
           ) : (
-            <p style={{ color: 'var(--muted-foreground)', textAlign: 'center', marginTop: 8, fontSize: 14 }}>
+            <p style={{ color: 'var(--muted-foreground)', textAlign: 'center', fontSize: 14, marginBottom: 8 }}>
               Ajoute des choix et lance la roue !
             </p>
           )}
+
           <div className="roue-choices">
             {choices.map((c, i) => (
               <span key={i} className="roue-tag">{c}<button className="roue-tag-remove" onClick={() => removeChoice(i)}>×</button></span>
@@ -622,7 +656,7 @@ function MorpionGame() {
   const [board, setBoard] = useState(Array(9).fill(null))
   const [xIsNext, setXIsNext] = useState(true)
   const [winner, setWinner] = useState(null)
-  const [scores, setScores] = useState({ X: 0, O: 0 })
+  const [scores, setScores] = useState({ '💕': 0, '❤️': 0 })
 
   function calculateWinner(squares) {
     const lines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]]
@@ -636,7 +670,7 @@ function MorpionGame() {
   function handleClick(i) {
     if (board[i] || winner) return
     const newBoard = [...board]
-    newBoard[i] = xIsNext ? 'X' : 'O'
+    newBoard[i] = xIsNext ? '💕' : '❤️'
     setBoard(newBoard)
     setXIsNext(!xIsNext)
     const w = calculateWinner(newBoard)
@@ -655,21 +689,21 @@ function MorpionGame() {
   }
 
   const w = calculateWinner(board)
-  const status = w === 'draw' ? 'Match nul !' : w ? `Gagnant : ${w}` : `Tour : ${xIsNext ? 'X' : 'O'}`
+  const status = w === 'draw' ? 'Match nul !' : w ? `${w} a gagné !` : `Tour de ${xIsNext ? '💕' : '❤️'}`
 
   return (
     <>
       <div className="game-card-wrapper">
         <div className="game-card revealed" style={{ cursor: 'default', flexDirection: 'column', maxWidth: 320 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', marginBottom: 12, fontSize: 14, color: 'var(--muted-foreground)' }}>
-            <span>X: {scores.X}</span>
+            <span>💕: {scores['💕']}</span>
             <span style={{ fontWeight: 700, color: w ? 'var(--primary)' : 'var(--foreground)' }}>{status}</span>
-            <span>O: {scores.O}</span>
+            <span>❤️: {scores['❤️']}</span>
           </div>
           <div className="morpion-board">
             {board.map((cell, i) => (
               <button key={i} className={`morpion-cell ${cell ? 'taken' : ''}`} onClick={() => handleClick(i)}>
-                {cell && <span style={{ color: cell === 'X' ? '#ff6b9d' : '#60a5fa', fontSize: 28, fontWeight: 800 }}>{cell}</span>}
+                {cell && <span style={{ fontSize: 28 }}>{cell}</span>}
               </button>
             ))}
           </div>
@@ -677,6 +711,74 @@ function MorpionGame() {
             <button className="btn btn-sm" style={{ marginTop: 12 }} onClick={reset}><RotateCcw size={14} /> Rejouer</button>
           )}
         </div>
+      </div>
+    </>
+  )
+}
+
+function WouldYouRather() {
+  const [question, setQuestion] = useState(null)
+  const [choice, setChoice] = useState(null)
+
+  function start() {
+    setQuestion(Math.floor(Math.random() * WYR_QUESTIONS.length))
+    setChoice(null)
+  }
+
+  if (question === null) {
+    return (
+      <div className="game-card-wrapper">
+        <div className="game-card idle" onClick={start}>
+          <Gamepad2 size={48} />
+          <p>Tu Préfères</p>
+          <span>Choisis impossible en couple</span>
+        </div>
+      </div>
+    )
+  }
+
+  const q = WYR_QUESTIONS[question]
+
+  return (
+    <>
+      <div className="game-card-wrapper">
+        <div className="game-card revealed" style={{ cursor: 'default', maxWidth: 440, flexDirection: 'column' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%' }}>
+            <button
+              className={`btn btn-full btn-lg`}
+              style={{
+                textAlign: 'center', height: 'auto', padding: '16px 20px',
+                background: choice === 'a' ? 'var(--primary)' : 'var(--secondary)',
+                color: choice === 'a' ? 'var(--primary-foreground)' : 'var(--foreground)',
+                border: choice === 'a' ? '2px solid var(--primary)' : '2px solid var(--input)',
+              }}
+              onClick={() => setChoice('a')}>
+              {q.a}
+            </button>
+            <p style={{ textAlign: 'center', fontSize: 13, fontWeight: 600, color: 'var(--muted-foreground)' }}>OU</p>
+            <button
+              className={`btn btn-full btn-lg`}
+              style={{
+                textAlign: 'center', height: 'auto', padding: '16px 20px',
+                background: choice === 'b' ? 'var(--accent)' : 'var(--secondary)',
+                color: choice === 'b' ? 'var(--primary-foreground)' : 'var(--foreground)',
+                border: choice === 'b' ? '2px solid var(--accent)' : '2px solid var(--input)',
+              }}
+              onClick={() => setChoice('b')}>
+              {q.b}
+            </button>
+          </div>
+          {choice && (
+            <p style={{ textAlign: 'center', fontSize: 14, color: 'var(--muted-foreground)', marginTop: 12 }}>
+              Discutez-en ensemble ! 👀
+            </p>
+          )}
+        </div>
+      </div>
+      <div className="game-actions">
+        <button className="btn btn-sm" onClick={start}>
+          <RotateCcw size={14} /> Suivante
+        </button>
       </div>
     </>
   )
@@ -690,11 +792,32 @@ const GAME_COMPONENTS = {
   culture: CultureGame,
   roue: RoueGame,
   morpion: MorpionGame,
+  preferes: WouldYouRather,
 }
 
 export default function Games() {
-  const [active, setActive] = useState('truthdare')
-  const GameComponent = GAME_COMPONENTS[active]
+  const [active, setActive] = useState(null)
+
+  if (active) {
+    const game = GAMES_LIST.find(g => g.key === active)
+    const GameComponent = GAME_COMPONENTS[active]
+    return (
+      <div className="page games-page">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+          <button className="btn-icon" onClick={() => setActive(null)}>
+            <ArrowLeft size={22} />
+          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ display: 'inline-flex', padding: 8, borderRadius: 'var(--radius)', background: `${game?.color}18`, color: game?.color }}>
+              {game && <game.icon size={20} />}
+            </div>
+            <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>{game?.label}</h2>
+          </div>
+        </div>
+        <GameComponent />
+      </div>
+    )
+  }
 
   return (
     <div className="page games-page">
@@ -702,19 +825,35 @@ export default function Games() {
         <Gamepad2 size={24} />
         <h2>Nos Jeux</h2>
       </div>
-
-      <div className="games-menu">
-        {GAMES.map(g => (
-          <button key={g.key}
-            className={`games-menu-btn ${active === g.key ? 'active' : ''}`}
-            onClick={() => setActive(g.key)}>
-            <g.icon size={18} />
-            <span>{g.label}</span>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        {GAMES_LIST.map(game => (
+          <button
+            key={game.key}
+            onClick={() => setActive(game.key)}
+            style={{
+              background: 'var(--card)',
+              borderRadius: 'calc(var(--radius) * 1.5)',
+              padding: 16,
+              border: '1px solid var(--border)',
+              cursor: 'pointer',
+              textAlign: 'left',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+              transition: 'all 0.2s',
+              minWidth: 0,
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(138, 121, 171, 0.3)'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(138, 121, 171, 0.12)' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '' }}
+          >
+            <div style={{ display: 'inline-flex', padding: 8, borderRadius: 'var(--radius)', background: `${game.color}15`, color: game.color, alignSelf: 'flex-start' }}>
+              <game.icon size={22} />
+            </div>
+            <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--foreground)', margin: 0 }}>{game.label}</p>
+            <p style={{ fontSize: 12, color: 'var(--muted-foreground)', lineHeight: 1.3, margin: 0 }}>{game.desc}</p>
           </button>
         ))}
       </div>
-
-      <GameComponent />
     </div>
   )
 }

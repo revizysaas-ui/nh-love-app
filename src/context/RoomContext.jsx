@@ -25,9 +25,16 @@ export function RoomProvider({ children }) {
     }
   }, [])
 
-  const createRoom = useCallback(async () => {
+  const createRoom = useCallback(async (name) => {
     const code = Math.random().toString(36).substring(2, 8).toUpperCase()
-    const { data } = await supabase.from('rooms').insert({ code }).select().single()
+    const { data, error } = await supabase.from('rooms').insert({
+      code,
+      name1: name || 'Toi',
+    }).select().single()
+    if (error) {
+      console.error('Erreur création room:', error)
+      return null
+    }
     if (data) {
       localStorage.setItem('nh_room', data.id)
       setRoom(data)

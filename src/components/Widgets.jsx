@@ -55,7 +55,7 @@ export default function Widgets() {
 
       <div className="widgets-grid">
         <div className="widget-card">
-          <div className="widget-icon" style={{ background: '#ff6b9d' }}><Calendar size={22} /></div>
+          <div className="widget-icon" style={{ background: 'linear-gradient(135deg, #ff6b9d, #e8b4c8)' }}><Calendar size={22} /></div>
           <div className="widget-body">
             <span className="widget-label">Jours d'amour</span>
             <span className="widget-value">{days}</span>
@@ -63,7 +63,7 @@ export default function Widgets() {
         </div>
 
         <div className="widget-card">
-          <div className="widget-icon" style={{ background: '#60a5fa' }}><MapPin size={22} /></div>
+          <div className="widget-icon" style={{ background: 'linear-gradient(135deg, #60a5fa, #4a90d9)' }}><MapPin size={22} /></div>
           <div className="widget-body">
             <span className="widget-label">Distance</span>
             <span className="widget-value">{distance.toLocaleString('fr-FR')} km</span>
@@ -71,7 +71,7 @@ export default function Widgets() {
         </div>
 
         <div className="widget-card">
-          <div className="widget-icon" style={{ background: '#34d399' }}><Calendar size={22} /></div>
+          <div className="widget-icon" style={{ background: 'linear-gradient(135deg, #34d399, #2ecc71)' }}><Calendar size={22} /></div>
           <div className="widget-body">
             <span className="widget-label">Avant retrouvailles</span>
             <span className="widget-value">{untilDays > 0 ? `${untilDays} jours` : "C'est bientôt ! ❤️"}</span>
@@ -79,7 +79,7 @@ export default function Widgets() {
         </div>
 
         <div className="widget-card" style={{ gridColumn: '1 / -1' }}>
-          <div className="widget-icon" style={{ background: '#c084fc' }}><MessageCircleQuestion size={22} /></div>
+          <div className="widget-icon" style={{ background: 'linear-gradient(135deg, #c084fc, #9b59b6)' }}><MessageCircleQuestion size={22} /></div>
           <div className="widget-body">
             <span className="widget-label">Question du Jour</span>
             <span className="widget-desc">{dailyQ}</span>
@@ -88,7 +88,7 @@ export default function Widgets() {
 
         {lastDrawing && (
           <div className="widget-card" style={{ gridColumn: '1 / -1' }}>
-            <div className="widget-icon" style={{ background: '#f472b6' }}><PenLine size={22} /></div>
+            <div className="widget-icon" style={{ background: 'linear-gradient(135deg, #f472b6, #e8b4c8)' }}><PenLine size={22} /></div>
             <div className="widget-body">
               <span className="widget-label">Dernier dessin</span>
               <img src={lastDrawing.data_url} alt="" className="widget-thumb" />
@@ -98,7 +98,7 @@ export default function Widgets() {
 
         {lastPhoto && (
           <div className="widget-card" style={{ gridColumn: '1 / -1' }}>
-            <div className="widget-icon" style={{ background: '#f59e0b' }}><Image size={22} /></div>
+            <div className="widget-icon" style={{ background: 'linear-gradient(135deg, #f59e0b, #f0c88d)' }}><Image size={22} /></div>
             <div className="widget-body">
               <span className="widget-label">Dernière photo</span>
               <img src={supabase.storage.from('photos').getPublicUrl(lastPhoto.storage_path).data.publicUrl} alt="" className="widget-thumb" />

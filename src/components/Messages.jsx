@@ -132,10 +132,10 @@ export default function Messages() {
           <div className="empty-state">
             <Heart size={48} />
             <p>Pas encore de messages</p>
-            <span>Écris le premier mot doux</span>
+            <span style={{ fontSize: 14, color: 'var(--muted-foreground)' }}>Écris le premier mot doux</span>
           </div>
         ) : (
-          <div className="messages-list">
+          <div className="messages-list custom-scrollbar">
             {messages.map(m => {
               const msgReactions = reactions[m.id] || []
               const hasLiked = msgReactions.some(r => r.author === username)
@@ -166,10 +166,10 @@ export default function Messages() {
       </div>
 
       <form className="msg-input-bar" onSubmit={sendMessage}>
-        <button type="button" className="btn-icon msg-photo-btn" onClick={() => cameraRef.current?.click()} disabled={uploading}>
+        <button type="button" className="msg-photo-btn" onClick={() => cameraRef.current?.click()} disabled={uploading}>
           <Camera size={20} />
         </button>
-        <button type="button" className="btn-icon msg-photo-btn" onClick={() => fileRef.current?.click()} disabled={uploading}>
+        <button type="button" className="msg-photo-btn" onClick={() => fileRef.current?.click()} disabled={uploading}>
           <FolderOpen size={20} />
         </button>
         <input type="file" ref={cameraRef} accept="image/*" capture="environment" style={{ display: 'none' }} onChange={handleFile} />

@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { Settings, Sun, Moon, LogOut } from 'lucide-react'
+import { Settings, Sun, Moon, LogOut, Heart } from 'lucide-react'
 import { useState, useEffect, Suspense } from 'react'
 import { useRoom } from '../context/RoomContext'
 import ExpandableTabs from './ui/ExpandableTabs'
@@ -15,6 +15,7 @@ export default function Layout() {
   return (
     <div className="app-layout">
       <header className="app-header">
+        <Heart size={20} className="header-heart" fill="currentColor" />
         <span className="app-title">{room?.name1 || 'N'}&{room?.name2 || 'H'}</span>
         <NavLink to="/parametres" className="header-settings">
           <Settings size={20} />

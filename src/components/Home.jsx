@@ -45,7 +45,7 @@ export default function Home() {
           <span>Notre histoire</span>
         </div>
         <h1 className="hero-title">
-          <Heart size={32} className="hero-heart" fill="#e25555" />
+          <Heart size={32} className="hero-heart" fill="currentColor" />
           <span>{room.name1} & {room.name2}</span>
         </h1>
         <div className="hero-counters">
@@ -78,7 +78,7 @@ export default function Home() {
       <div className="quick-grid">
         {cards.map(c => (
           <button key={c.to} className="quick-card" style={{ '--accent': c.color }} onClick={() => navigate(c.to)}>
-            <div className="quick-icon"><c.icon size={24} /></div>
+            <div className="quick-icon" style={{ background: `${c.color}20`, color: c.color }}><c.icon size={24} /></div>
             <div className="quick-info">
               <strong>{c.label}</strong>
               <span>{c.desc}</span>

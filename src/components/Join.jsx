@@ -1,7 +1,38 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Heart, LogIn, UserPlus, Key, Sparkles } from 'lucide-react'
 import { useRoom } from '../context/RoomContext'
 import { useNavigate } from 'react-router-dom'
+
+function FloatingHearts() {
+  const hearts = useMemo(() =>
+    Array.from({ length: 8 }, (_, i) => ({
+      id: i,
+      left: `${10 + Math.random() * 80}%`,
+      top: `${10 + Math.random() * 80}%`,
+      size: 16 + Math.random() * 24,
+      delay: `${i * 0.4}s`,
+      duration: `${2 + Math.random() * 2}s`,
+    })), [])
+
+  return (
+    <div className="join-floating-hearts">
+      {hearts.map(h => (
+        <Heart
+          key={h.id}
+          className="floating-heart"
+          size={h.size}
+          fill="currentColor"
+          style={{
+            left: h.left,
+            top: h.top,
+            animationDelay: h.delay,
+            animationDuration: h.duration,
+          }}
+        />
+      ))}
+    </div>
+  )
+}
 
 export default function Join() {
   const { createRoom, joinRoom, username, setUsername } = useRoom()
@@ -20,7 +51,7 @@ export default function Join() {
     setUsername(localName.trim())
     setLoading(true)
     setError('')
-    const room = await createRoom()
+    const room = await createRoom(localName.trim())
     setLoading(false)
     if (room) navigate('/')
     else setError('Erreur lors de la création')
@@ -42,10 +73,11 @@ export default function Join() {
 
   return (
     <div className="join-page">
+      <FloatingHearts />
       <div className="join-card">
         <div className="join-logo">
-          <Heart size={48} className="join-heart" />
-          <Sparkles size={20} className="join-sparkle" />
+          <Heart size={36} className="join-heart" fill="currentColor" />
+          <Sparkles size={18} className="join-sparkle" />
         </div>
         <h1>N&H</h1>
         <p className="join-sub">Créez ou rejoignez votre espace à deux</p>

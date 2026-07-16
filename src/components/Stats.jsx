@@ -37,7 +37,7 @@ export default function Stats() {
       <div className="stats-grid">
         {items.map(item => (
           <div key={item.label} className="stat-card">
-            <div className="stat-icon" style={{ background: item.color }}><item.icon size={24} /></div>
+            <div className="stat-icon" style={{ background: `linear-gradient(135deg, ${item.color}, ${item.color}cc)` }}><item.icon size={24} /></div>
             <span className="stat-value">{item.value}</span>
             <span className="stat-label">{item.label}</span>
           </div>

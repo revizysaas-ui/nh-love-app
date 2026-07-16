@@ -119,13 +119,18 @@ export default function Gallery() {
         <div className="empty-state">
           <Heart size={48} />
           <p>Pas encore de photos</p>
-          <span>Ajoutez vos premiers souvenirs</span>
+          <span style={{ fontSize: 14, color: 'var(--muted-foreground)' }}>Ajoutez vos premiers souvenirs</span>
         </div>
       ) : (
         <div className="gallery-grid">
           {photos.map(p => (
             <div key={p.id} className="gallery-item" onClick={() => openPhoto(p)}>
-              <img src={supabase.storage.from('photos').getPublicUrl(p.storage_path).data.publicUrl} alt={p.caption || ''} />
+              <img src={supabase.storage.from('photos').getPublicUrl(p.storage_path).data.publicUrl} alt={p.caption || ''} loading="lazy" />
+              {p.caption && (
+                <div className="gallery-overlay">
+                  <span>{p.caption}</span>
+                </div>
+              )}
             </div>
           ))}
         </div>

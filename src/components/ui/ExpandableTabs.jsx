@@ -37,7 +37,7 @@ export default function ExpandableTabs() {
             className={`expandable-tab ${isSelected ? "selected" : ""}`}
             style={{ gap: isSelected ? "0.5rem" : "0" }}
           >
-            <Icon size={24} />
+            <Icon size={22} strokeWidth={isSelected ? 2.5 : 2} />
             {isSelected && <span className="expandable-tab-label">{tab.title}</span>}
           </button>
         );

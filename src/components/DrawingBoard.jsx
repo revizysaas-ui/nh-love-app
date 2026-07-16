@@ -4,14 +4,14 @@ import { supabase } from '../lib/supabase'
 import { useRoom } from '../context/RoomContext'
 import { notify } from '../lib/notify'
 
-const COLORS = ['#e25555', '#ff6b6b', '#ffa07a', '#ffd700', '#98fb98', '#60a5fa', '#c084fc', '#2d2d2d', '#ff69b4', '#00ced1', '#ff8c00', '#8a79ab']
+const COLORS = ['#8a79ab', '#e8b4c8', '#e74c6f', '#4a90d9', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c', '#e74c3c', '#2c3e50']
 const MAX_HISTORY = 30
 
 export default function DrawingBoard() {
   const { room, username } = useRoom()
   const canvasRef = useRef(null)
   const [isDrawing, setIsDrawing] = useState(false)
-  const [color, setColor] = useState('#e25555')
+  const [color, setColor] = useState('#8a79ab')
   const [brushSize, setBrushSize] = useState(4)
   const [saved, setSaved] = useState([])
   const [loading, setLoading] = useState(true)

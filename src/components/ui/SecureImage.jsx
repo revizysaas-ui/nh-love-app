@@ -1,35 +1,42 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
-export default function SecureImage({ url, alt, className, style, onClick, loading }) {
-  const [blobUrl, setBlobUrl] = useState(null)
+export default function SecureImage({ url, alt, className, style, onClick }) {
+  const canvasRef = useRef(null)
+  const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
-    if (!url) return
+    if (!url || !canvasRef.current) return
     let cancelled = false
+    const canvas = canvasRef.current
+    const ctx = canvas.getContext('2d')
+
     fetch(url)
       .then(r => r.blob())
       .then(blob => {
-        if (!cancelled) setBlobUrl(URL.createObjectURL(blob))
+        if (cancelled) return
+        const img = new Image()
+        img.onload = () => {
+          if (cancelled) return
+          canvas.width = img.naturalWidth
+          canvas.height = img.naturalHeight
+          ctx.drawImage(img, 0, 0)
+          setLoaded(true)
+        }
+        img.src = URL.createObjectURL(blob)
       })
-      .catch(() => {
-        if (!cancelled) setBlobUrl(url)
-      })
-    return () => {
-      cancelled = true
-      if (blobUrl) URL.revokeObjectURL(blobUrl)
-    }
+      .catch(() => {})
+
+    return () => { cancelled = true }
   }, [url])
 
-  if (!blobUrl) return <div className={className} style={{ ...style, background: 'var(--muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} />
-
   return (
-    <img
-      src={blobUrl}
-      alt={alt || ''}
+    <canvas
+      ref={canvasRef}
       className={className}
-      style={style}
+      style={{ ...style, display: loaded ? 'block' : 'none' }}
       onClick={onClick}
-      loading={loading}
+      onContextMenu={e => e.preventDefault()}
+      onDragStart={e => e.preventDefault()}
     />
   )
 }

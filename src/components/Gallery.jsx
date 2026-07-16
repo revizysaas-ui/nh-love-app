@@ -3,6 +3,7 @@ import { Image, Camera, FolderOpen, X, Trash2, Heart, Send, MessageCircle, Uploa
 import { supabase } from '../lib/supabase'
 import { useRoom } from '../context/RoomContext'
 import { notify } from '../lib/notify'
+import { hashPin, verifyPin } from '../lib/crypto'
 import SecureImage from './ui/SecureImage'
 
 const SENSITIVE_EMOJIS = ['🎂', '🔒', '🙈', '🎁', '💝', '💐', '🌸', '🦋', '✨', '💫']
@@ -83,13 +84,14 @@ export default function Gallery() {
       .upload(path, selectedFile)
     if (uploadErr) { setUploading(false); return }
 
+    const hashedCode = sensitive ? await hashPin(sensitiveCode) : null
     await supabase.from('photos').insert({
       room_id: room.id,
       storage_path: path,
       caption: caption.trim(),
       sensitive,
       sensitive_emoji: sensitive ? sensitiveEmoji : null,
-      sensitive_code: sensitive ? sensitiveCode.trim() : null,
+      sensitive_code: hashedCode,
     })
     setCaption('')
     setSelectedFile(null)
@@ -117,7 +119,9 @@ export default function Gallery() {
 
   async function toggleSensitive(photo) {
     const newValue = !photo.sensitive
-    const code = sensitiveCode.trim() || photo.sensitive_code || null
+    const rawCode = sensitiveCode.trim()
+    const isNewCode = rawCode && rawCode !== photo.sensitive_code
+    const code = isNewCode ? await hashPin(rawCode) : (rawCode || photo.sensitive_code || null)
     if (newValue && !code) return
     const emoji = newValue ? (sensitiveEmoji || photo.sensitive_emoji || '🎂') : null
     await supabase.from('photos').update({
@@ -172,9 +176,9 @@ export default function Gallery() {
     setPinErrorGrid(false)
   }
 
-  function verifyPinGrid() {
+  async function verifyPinGrid() {
     if (!pinModalPhoto) return
-    if (pinInput.trim() === pinModalPhoto.sensitive_code) {
+    if (await verifyPin(pinInput, pinModalPhoto.sensitive_code)) {
       revealPhoto(pinModalPhoto.id)
       setPinModalPhoto(null)
       setPinInput('')
@@ -195,9 +199,9 @@ export default function Gallery() {
     setPinError(false)
   }
 
-  function verifyPinModal() {
+  async function verifyPinModal() {
     if (!pinModalPhoto) return
-    if (pinInput.trim() === pinModalPhoto.sensitive_code) {
+    if (await verifyPin(pinInput, pinModalPhoto.sensitive_code)) {
       if (selected?.id === pinModalPhoto.id) {
         setRevealedModal(true)
       } else {
@@ -212,7 +216,7 @@ export default function Gallery() {
     }
   }
 
-  function verifyPin() {
+  function handleVerifyPin() {
     if (selected && selected.id === pinModalPhoto?.id) {
       verifyPinModal()
     } else {
@@ -423,7 +427,7 @@ export default function Gallery() {
                 placeholder="••••"
                 value={pinInput}
                 onChange={e => { setPinInput(e.target.value); setPinError(false); setPinErrorGrid(false) }}
-                onKeyDown={e => e.key === 'Enter' && verifyPin()}
+                onKeyDown={e => e.key === 'Enter' && handleVerifyPin()}
                 className={`pin-input ${pinError || pinErrorGrid ? 'pin-error' : ''}`}
                 maxLength={20}
                 autoFocus
@@ -434,7 +438,7 @@ export default function Gallery() {
             )}
             <div className="pin-modal-actions">
               <button className="btn btn-secondary" onClick={() => setPinModalPhoto(null)}>Annuler</button>
-              <button className="btn btn-primary" onClick={verifyPin} disabled={!pinInput.trim()}>
+              <button className="btn btn-primary" onClick={handleVerifyPin} disabled={!pinInput.trim()}>
                 <KeyRound size={16} /> Débloquer
               </button>
             </div>

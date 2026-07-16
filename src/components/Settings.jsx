@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { Settings as SettingsIcon, Heart, MapPin, Calendar, Save, Copy, Check, Search, Loader } from 'lucide-react'
+import { Settings as SettingsIcon, Heart, MapPin, Calendar, Save, Copy, Check, Search, Loader, Shield, Lock } from 'lucide-react'
 import { useRoom } from '../context/RoomContext'
+import { hashPin } from '../lib/crypto'
 
 async function geocode(city) {
   if (!city.trim()) return null
@@ -14,12 +15,15 @@ async function geocode(city) {
 }
 
 export default function Settings() {
-  const { room, updateRoom } = useRoom()
+  const { room, updateRoom, setRoomPassword } = useRoom()
   const [form, setForm] = useState(room || {})
   const [saved, setSaved] = useState(false)
   const [copied, setCopied] = useState(false)
   const [searching1, setSearching1] = useState(false)
   const [searching2, setSearching2] = useState(false)
+  const [newPassword, setNewPassword] = useState('')
+  const [passwordSaved, setPasswordSaved] = useState(false)
+  const [passwordLoading, setPasswordLoading] = useState(false)
 
   if (!room) return null
 
@@ -53,11 +57,23 @@ export default function Settings() {
     setTimeout(() => setSaved(false), 2000)
   }
 
+  async function handlePassword() {
+    setPasswordLoading(true)
+    const hashed = newPassword.trim() ? await hashPin(newPassword) : null
+    await setRoomPassword(hashed)
+    setPasswordLoading(false)
+    setPasswordSaved(true)
+    setNewPassword('')
+    setTimeout(() => setPasswordSaved(false), 2000)
+  }
+
   function copyCode() {
     navigator.clipboard.writeText(room.code)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
+
+  const hasPassword = !!room.room_password
 
   return (
     <div className="page settings-page">
@@ -72,7 +88,38 @@ export default function Settings() {
           <button className="code-badge" onClick={copyCode}>
             {room.code} {copied ? <Check size={14} /> : <Copy size={14} />}
           </button>
-          <small>Donne ce code à ta copine pour lier vos espaces</small>
+          <small>Donne ce code à ta moitié pour lier vos espaces</small>
+        </div>
+      </div>
+
+      <div className="settings-card">
+        <h3><Shield size={18} /> Sécurité</h3>
+        <div className="settings-grid">
+          <div className="field">
+            <label>Mot de passe de la room {hasPassword && <span style={{ color: 'var(--chart-3)' }}>(actif ✓)</span>}</label>
+            <div className="field-row">
+              <input
+                type="password"
+                placeholder={hasPassword ? '••••••••' : 'Aucun mot de passe'}
+                value={newPassword}
+                onChange={e => setNewPassword(e.target.value)}
+                style={{ flex: 1 }}
+              />
+              <button
+                className="btn btn-sm btn-secondary"
+                onClick={handlePassword}
+                disabled={passwordLoading}
+              >
+                {passwordLoading ? <Loader size={14} /> : <Lock size={14} />}
+              </button>
+            </div>
+            {passwordSaved && <small style={{ color: 'var(--chart-3)', fontSize: 12 }}>Enregistré !</small>}
+            <small style={{ fontSize: 12, color: 'var(--muted-foreground)', marginTop: 4, display: 'block' }}>
+              {hasPassword
+                ? 'Un mot de passe est requis pour rejoindre. Laisse vide pour le retirer.'
+                : 'Ajoute un mot de passe pour protéger ton espace.'}
+            </small>
+          </div>
         </div>
       </div>
 

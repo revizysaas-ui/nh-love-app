@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Heart, LogIn, UserPlus, Key, Sparkles } from 'lucide-react'
+import { Heart, LogIn, UserPlus, Key, Sparkles, Lock } from 'lucide-react'
 import { useRoom } from '../context/RoomContext'
 import { useNavigate } from 'react-router-dom'
 
@@ -38,6 +38,7 @@ export default function Join() {
   const { createRoom, joinRoom, username, setUsername } = useRoom()
   const navigate = useNavigate()
   const [code, setCode] = useState('')
+  const [roomPassword, setRoomPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [localName, setLocalName] = useState(username)
@@ -65,10 +66,12 @@ export default function Join() {
     setUsername(localName.trim())
     setLoading(true)
     setError('')
-    const room = await joinRoom(code.trim())
+    const { data, error: joinError } = await joinRoom(code.trim(), roomPassword.trim() || null)
     setLoading(false)
-    if (room) navigate('/')
-    else setError('Code invalide. Vérifie avec ta moitié !')
+    if (data) navigate('/')
+    else if (joinError?.message?.includes('row')) setError('Code invalide. Vérifie avec ta moitié !')
+    else if (roomPassword) setError('Mot de passe incorrect. Vérifie avec ta moitié !')
+    else setError('Code invalide ou mot de passe requis. Vérifie avec ta moitié !')
   }
 
   return (
@@ -105,10 +108,19 @@ export default function Join() {
           <div className="input-group">
             <Key size={18} />
             <input
-              placeholder="Entre le code à 6 lettres"
+              placeholder="Code à 6 lettres"
               value={code}
               onChange={e => setCode(e.target.value.toUpperCase())}
               maxLength={6}
+            />
+          </div>
+          <div className="input-group">
+            <Lock size={18} />
+            <input
+              type="password"
+              placeholder="Mot de passe (si défini)"
+              value={roomPassword}
+              onChange={e => setRoomPassword(e.target.value)}
             />
           </div>
           {error && <p className="join-error">{error}</p>}

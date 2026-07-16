@@ -9,6 +9,29 @@ function generateToken() {
   return Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
+async function ensureSession(roomId, displayName) {
+  let token = localStorage.getItem('nh_room_token_' + roomId)
+  if (!token) {
+    token = generateToken()
+    localStorage.setItem('nh_room_token_' + roomId, token)
+  }
+  setRoomToken(token)
+  const { data: existing } = await supabase
+    .from('room_sessions')
+    .select('id')
+    .eq('room_id', roomId)
+    .eq('user_token', token)
+    .maybeSingle()
+  if (!existing) {
+    await supabase.from('room_sessions').insert({
+      room_id: roomId,
+      user_token: token,
+      display_name: displayName || 'Anonyme',
+    })
+  }
+  return token
+}
+
 export function RoomProvider({ children }) {
   const [room, setRoom] = useState(null)
   const [loading, setLoading] = useState(() => !!localStorage.getItem('nh_room'))
@@ -19,36 +42,15 @@ export function RoomProvider({ children }) {
     localStorage.setItem('nh_username', name)
   }, [])
 
-  async function createSession(roomId) {
-    let token = localStorage.getItem('nh_room_token_' + roomId)
-    if (!token) {
-      token = generateToken()
-      localStorage.setItem('nh_room_token_' + roomId, token)
-    }
-    const { data: existing } = await supabase
-      .from('room_sessions')
-      .select('id')
-      .eq('room_id', roomId)
-      .eq('user_token', token)
-      .maybeSingle()
-    if (!existing) {
-      await supabase.from('room_sessions').insert({
-        room_id: roomId,
-        user_token: token,
-        display_name: username || 'Anonyme',
-      })
-    }
-    setRoomToken(token)
-    return token
-  }
-
   useEffect(() => {
     const saved = localStorage.getItem('nh_room')
     if (saved) {
+      const token = localStorage.getItem('nh_room_token_' + saved)
+      if (token) setRoomToken(token)
       supabase.from('rooms').select('*').eq('id', saved).single().then(async ({ data }) => {
         if (data) {
           setRoom(data)
-          await createSession(data.id)
+          await ensureSession(data.id, username)
         }
         setLoading(false)
       })
@@ -69,8 +71,8 @@ export function RoomProvider({ children }) {
     }
     if (data) {
       localStorage.setItem('nh_room', data.id)
+      await ensureSession(data.id, name)
       setRoom(data)
-      await createSession(data.id)
     }
     return data
   }, [username])
@@ -85,8 +87,8 @@ export function RoomProvider({ children }) {
     const { data, error } = await query.single()
     if (data) {
       localStorage.setItem('nh_room', data.id)
+      await ensureSession(data.id, username)
       setRoom(data)
-      await createSession(data.id)
     }
     return { data, error }
   }, [username])

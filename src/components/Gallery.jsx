@@ -441,15 +441,13 @@ export default function Gallery() {
                 className="gallery-modal-close"
                 style={selected.sensitive ? { color: 'var(--romantic)' } : {}}
                 onClick={() => {
-                  if (selected.sensitive && revealedModal) {
-                    setRevealedModal(false)
-                  } else {
-                    toggleSensitive(selected)
+                  if (selected.sensitive) {
+                    setRevealedModal(prev => !prev)
                   }
                 }}
-                title={selected.sensitive && revealedModal ? 'Re-flouter' : selected.sensitive ? 'Retirer le flou' : 'Rendre sensible'}
+                title={selected.sensitive && revealedModal ? 'Re-flouter' : 'Voir la photo'}
               >
-                {selected.sensitive ? <Eye size={16} /> : <Shield size={16} />}
+                {selected.sensitive && revealedModal ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
               <button className="gallery-modal-close" onClick={() => deletePhoto(selected)}>
                 <Trash2 size={16} />

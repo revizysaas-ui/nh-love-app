@@ -440,8 +440,14 @@ export default function Gallery() {
               <button
                 className="gallery-modal-close"
                 style={selected.sensitive ? { color: 'var(--romantic)' } : {}}
-                onClick={() => toggleSensitive(selected)}
-                title={selected.sensitive ? 'Retirer le flou' : 'Rendre sensible'}
+                onClick={() => {
+                  if (selected.sensitive && revealedModal) {
+                    setRevealedModal(false)
+                  } else {
+                    toggleSensitive(selected)
+                  }
+                }}
+                title={selected.sensitive && revealedModal ? 'Re-flouter' : selected.sensitive ? 'Retirer le flou' : 'Rendre sensible'}
               >
                 {selected.sensitive ? <Eye size={16} /> : <Shield size={16} />}
               </button>

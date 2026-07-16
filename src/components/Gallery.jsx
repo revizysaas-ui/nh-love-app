@@ -1,8 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
-import { Image, Camera, FolderOpen, X, Trash2, Heart, Send, MessageCircle, Upload } from 'lucide-react'
+import { Image, Camera, FolderOpen, X, Trash2, Heart, Send, MessageCircle, Upload, Eye, EyeOff, Shield } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useRoom } from '../context/RoomContext'
 import { notify } from '../lib/notify'
+
+const SENSITIVE_EMOJIS = ['🎂', '🔒', '🙈', '🎁', '💝', '💐', '🌸', '🦋', '✨', '💫']
+
+function getPhotoUrl(storagePath) {
+  return supabase.storage.from('photos').getPublicUrl(storagePath).data.publicUrl
+}
 
 export default function Gallery() {
   const { room, username } = useRoom()
@@ -16,6 +22,10 @@ export default function Gallery() {
   const [selectedFile, setSelectedFile] = useState(null)
   const [comments, setComments] = useState([])
   const [commentText, setCommentText] = useState('')
+  const [sensitive, setSensitive] = useState(false)
+  const [sensitiveEmoji, setSensitiveEmoji] = useState('🎂')
+  const [revealedPhotos, setRevealedPhotos] = useState({})
+  const [revealedModal, setRevealedModal] = useState(false)
   const cameraRef = useRef(null)
   const fileRef = useRef(null)
 
@@ -63,13 +73,17 @@ export default function Gallery() {
       room_id: room.id,
       storage_path: path,
       caption: caption.trim(),
+      sensitive,
+      sensitive_emoji: sensitive ? sensitiveEmoji : null,
     })
     setCaption('')
     setSelectedFile(null)
     setUploadPreview(null)
     setShowUpload(false)
+    setSensitive(false)
+    setSensitiveEmoji('🎂')
     setUploading(false)
-    notify(room.id, 'photo', 'a ajouté une photo à la galerie 📸', username)
+    notify(room.id, 'photo', sensitive ? 'a ajouté une photo sensible 🔒' : 'a ajouté une photo à la galerie 📸', username)
   }
 
   async function deletePhoto(photo) {
@@ -77,10 +91,23 @@ export default function Gallery() {
     await supabase.from('photos').delete().eq('id', photo.id)
     setPhotos(prev => prev.filter(p => p.id !== photo.id))
     setSelected(null)
+    setRevealedModal(false)
   }
 
   async function saveCaption(id) {
     await supabase.from('photos').update({ caption }).eq('id', id)
+  }
+
+  async function toggleSensitive(photo) {
+    const newValue = !photo.sensitive
+    await supabase.from('photos').update({
+      sensitive: newValue,
+      sensitive_emoji: newValue ? sensitiveEmoji : null,
+    }).eq('id', photo.id)
+    setPhotos(prev => prev.map(p => p.id === photo.id ? { ...p, sensitive: newValue, sensitive_emoji: newValue ? sensitiveEmoji : null } : p))
+    if (selected?.id === photo.id) {
+      setSelected(prev => ({ ...prev, sensitive: newValue, sensitive_emoji: newValue ? sensitiveEmoji : null }))
+    }
   }
 
   async function loadComments(photoId) {
@@ -110,7 +137,16 @@ export default function Gallery() {
     setCaption(p.caption)
     setComments([])
     setCommentText('')
+    setRevealedModal(false)
     loadComments(p.id)
+  }
+
+  function revealPhoto(id) {
+    setRevealedPhotos(prev => ({ ...prev, [id]: true }))
+  }
+
+  function hidePhoto(id) {
+    setRevealedPhotos(prev => ({ ...prev, [id]: false }))
   }
 
   return (
@@ -130,11 +166,16 @@ export default function Gallery() {
       {showUpload && (
         <div className="gallery-upload-area">
           {uploadPreview && (
-            <div className="gallery-upload-preview">
-              <img src={uploadPreview} alt="Preview" />
+            <div className={`gallery-upload-preview ${sensitive ? 'sensitive-preview' : ''}`}>
+              <img src={uploadPreview} alt="Preview" style={sensitive ? { filter: 'blur(20px)' } : {}} />
               <button className="gallery-upload-remove" onClick={() => { setUploadPreview(null); setSelectedFile(null) }}>
                 <X size={16} />
               </button>
+              {sensitive && (
+                <div className="sensitive-preview-overlay">
+                  <span style={{ fontSize: 48 }}>{sensitiveEmoji}</span>
+                </div>
+              )}
             </div>
           )}
           <input
@@ -150,6 +191,39 @@ export default function Gallery() {
             value={caption}
             onChange={e => setCaption(e.target.value)}
           />
+
+          {/* Sensitive toggle */}
+          <div className="sensitive-toggle-row">
+            <button
+              className={`sensitive-toggle ${sensitive ? 'active' : ''}`}
+              onClick={() => setSensitive(!sensitive)}
+              type="button"
+            >
+              <Shield size={16} />
+              <span>Photo sensible</span>
+              {sensitive ? <EyeOff size={14} /> : <Eye size={14} />}
+            </button>
+          </div>
+
+          {/* Emoji picker for sensitive */}
+          {sensitive && (
+            <div className="sensitive-emoji-picker">
+              <span className="sensitive-emoji-label">Choisir un emoji de couverture :</span>
+              <div className="sensitive-emoji-grid">
+                {SENSITIVE_EMOJIS.map(em => (
+                  <button
+                    key={em}
+                    className={`sensitive-emoji-btn ${sensitiveEmoji === em ? 'active' : ''}`}
+                    onClick={() => setSensitiveEmoji(em)}
+                    type="button"
+                  >
+                    {em}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="gallery-upload-actions">
             <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => fileRef.current?.click()}>
               <Image size={16} />
@@ -182,12 +256,38 @@ export default function Gallery() {
       ) : (
         <div className="gallery-grid">
           {photos.map(p => {
-            const url = supabase.storage.from('photos').getPublicUrl(p.storage_path).data.publicUrl
+            const url = getPhotoUrl(p.storage_path)
+            const isSensitive = p.sensitive
+            const isRevealed = revealedPhotos[p.id]
             return (
-              <div key={p.id} className="gallery-item" onClick={() => openPhoto(p)}>
-                <img src={url} alt={p.caption || ''} loading="lazy" />
+              <div
+                key={p.id}
+                className={`gallery-item ${isSensitive ? 'gallery-item-sensitive' : ''} ${isRevealed ? 'revealed' : ''}`}
+                onClick={() => isSensitive && !isRevealed ? revealPhoto(p.id) : openPhoto(p)}
+              >
+                <img
+                  src={url}
+                  alt={p.caption || ''}
+                  loading="lazy"
+                  style={isSensitive && !isRevealed ? { filter: 'blur(20px)' } : {}}
+                />
+                {isSensitive && !isRevealed && (
+                  <div className="sensitive-overlay">
+                    <span className="sensitive-emoji-display">{p.sensitive_emoji || '🎂'}</span>
+                    <span className="sensitive-label">Photo sensible</span>
+                    <button className="sensitive-reveal-btn" onClick={(e) => { e.stopPropagation(); revealPhoto(p.id) }}>
+                      <Eye size={16} /> Voir
+                    </button>
+                  </div>
+                )}
+                {isSensitive && isRevealed && (
+                  <button className="sensitive-hide-btn" onClick={(e) => { e.stopPropagation(); hidePhoto(p.id) }}>
+                    <EyeOff size={14} />
+                  </button>
+                )}
                 <div className="gallery-overlay">
                   {p.caption && <span>{p.caption}</span>}
+                  {isSensitive && <span className="gallery-sensitive-badge">🔒</span>}
                 </div>
               </div>
             )
@@ -196,21 +296,60 @@ export default function Gallery() {
       )}
 
       {selected && (
-        <div className="modal-overlay" onClick={() => setSelected(null)}>
+        <div className="modal-overlay" onClick={() => { setSelected(null); setRevealedModal(false) }}>
           <div className="modal-card gallery-modal" onClick={e => e.stopPropagation()}>
             <div className="gallery-modal-header">
+              <button
+                className="gallery-modal-close"
+                style={selected.sensitive ? { color: selected.sensitive ? 'var(--romantic)' : undefined } : {}}
+                onClick={() => toggleSensitive(selected)}
+                title={selected.sensitive ? 'Retirer le flou' : 'Rendre sensible'}
+              >
+                {selected.sensitive ? <Eye size={16} /> : <Shield size={16} />}
+              </button>
               <button className="gallery-modal-close" onClick={() => deletePhoto(selected)}>
                 <Trash2 size={16} />
               </button>
-              <button className="gallery-modal-close" onClick={() => setSelected(null)}>
+              <button className="gallery-modal-close" onClick={() => { setSelected(null); setRevealedModal(false) }}>
                 <X size={16} />
               </button>
             </div>
-            <img
-              src={supabase.storage.from('photos').getPublicUrl(selected.storage_path).data.publicUrl}
-              alt={selected.caption || ''}
-              className="modal-img"
-            />
+
+            {/* Modal image with sensitive handling */}
+            <div className="gallery-modal-image-wrapper">
+              {selected.sensitive && !revealedModal ? (
+                <div className="gallery-modal-sensitive" onClick={() => setRevealedModal(true)}>
+                  <img
+                    src={getPhotoUrl(selected.storage_path)}
+                    alt={selected.caption || ''}
+                    className="modal-img"
+                    style={{ filter: 'blur(25px)' }}
+                  />
+                  <div className="gallery-modal-sensitive-overlay">
+                    <span style={{ fontSize: 56 }}>{selected.sensitive_emoji || '🎂'}</span>
+                    <p style={{ color: 'white', fontWeight: 600, marginTop: 8, fontSize: 15 }}>Photo sensible</p>
+                    <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, marginTop: 4 }}>Appuyez pour révéler</p>
+                  </div>
+                </div>
+              ) : (
+                <img
+                  src={getPhotoUrl(selected.storage_path)}
+                  alt={selected.caption || ''}
+                  className="modal-img"
+                />
+              )}
+            </div>
+
+            {selected.sensitive && revealedModal && (
+              <div className="gallery-modal-sensitive-info">
+                <Shield size={14} />
+                <span>Photo marquée comme sensible</span>
+                <button className="btn-icon" onClick={() => setRevealedModal(false)}>
+                  <EyeOff size={14} />
+                </button>
+              </div>
+            )}
+
             <div className="gallery-modal-body">
               {selected.caption && <p className="gallery-modal-caption">{selected.caption}</p>}
               <div className="gallery-modal-caption-input">

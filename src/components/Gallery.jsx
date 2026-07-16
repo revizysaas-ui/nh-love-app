@@ -434,7 +434,7 @@ export default function Gallery() {
       )}
 
       {selected && (
-        <div className="modal-overlay" onClick={() => { setSelected(null); setRevealedModal(false) }}>
+        <div className="modal-overlay" onClick={() => { if (selected) setRevealedPhotos(prev => ({ ...prev, [selected.id]: false })); setSelected(null); setRevealedModal(false) }}>
           <div className="modal-card gallery-modal" onClick={e => e.stopPropagation()}>
             <div className="gallery-modal-header">
               <button
@@ -452,7 +452,7 @@ export default function Gallery() {
               <button className="gallery-modal-close" onClick={() => deletePhoto(selected)}>
                 <Trash2 size={16} />
               </button>
-              <button className="gallery-modal-close" onClick={() => { setSelected(null); setRevealedModal(false) }}>
+              <button className="gallery-modal-close" onClick={() => { setRevealedPhotos(prev => ({ ...prev, [selected.id]: false })); setSelected(null); setRevealedModal(false) }}>
                 <X size={16} />
               </button>
             </div>

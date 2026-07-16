@@ -1,33 +1,70 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
-import { PenLine, Trash2, Download, Save, Minus, Plus, Undo2, Redo2, Eraser } from 'lucide-react'
+import { Pen, Eraser, Undo2, Redo2, Trash2, Palette, Download, Save } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useRoom } from '../context/RoomContext'
 import { notify } from '../lib/notify'
 
 const COLORS = ['#8a79ab', '#e8b4c8', '#e74c6f', '#4a90d9', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c', '#e74c3c', '#2c3e50']
-const MAX_HISTORY = 30
 
 export default function DrawingBoard() {
   const { room, username } = useRoom()
   const canvasRef = useRef(null)
+  const containerRef = useRef(null)
   const [isDrawing, setIsDrawing] = useState(false)
   const [color, setColor] = useState('#8a79ab')
   const [brushSize, setBrushSize] = useState(4)
+  const [tool, setTool] = useState('pen')
+  const [showColors, setShowColors] = useState(false)
   const [saved, setSaved] = useState([])
   const [loading, setLoading] = useState(true)
-  const [isEraser, setIsEraser] = useState(false)
-  const [history, setHistory] = useState([])
-  const [historyIndex, setHistoryIndex] = useState(-1)
+  const [saving, setSaving] = useState(false)
   const lastPoint = useRef(null)
-  const skipSave = useRef(false)
+  const historyRef = useRef([])
+  const historyIndexRef = useRef(-1)
+
+  function saveHistory() {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const data = canvas.toDataURL()
+    historyRef.current = historyRef.current.slice(0, historyIndexRef.current + 1)
+    historyRef.current.push(data)
+    if (historyRef.current.length > 30) historyRef.current.shift()
+    historyIndexRef.current = historyRef.current.length - 1
+  }
+
+  function undo() {
+    if (historyIndexRef.current <= 0) return
+    historyIndexRef.current--
+    restoreHistory()
+  }
+
+  function redo() {
+    if (historyIndexRef.current >= historyRef.current.length - 1) return
+    historyIndexRef.current++
+    restoreHistory()
+  }
+
+  function restoreHistory() {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    const img = new Image()
+    img.onload = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      ctx.drawImage(img, 0, 0)
+    }
+    img.src = historyRef.current[historyIndexRef.current]
+  }
 
   const getPos = useCallback((e) => {
-    const rect = canvasRef.current.getBoundingClientRect()
+    const canvas = canvasRef.current
+    if (!canvas) return { x: 0, y: 0 }
+    const rect = canvas.getBoundingClientRect()
     const clientX = e.touches ? e.touches[0].clientX : e.clientX
     const clientY = e.touches ? e.touches[0].clientY : e.clientY
     return {
-      x: (clientX - rect.left) * (canvasRef.current.width / rect.width),
-      y: (clientY - rect.top) * (canvasRef.current.height / rect.height),
+      x: (clientX - rect.left) * (canvas.width / rect.width),
+      y: (clientY - rect.top) * (canvas.height / rect.height),
     }
   }, [])
 
@@ -37,50 +74,32 @@ export default function DrawingBoard() {
     initCanvas()
   }, [room])
 
+  useEffect(() => {
+    function resizeCanvas() {
+      const canvas = canvasRef.current
+      const container = containerRef.current
+      if (!canvas || !container) return
+      const rect = container.getBoundingClientRect()
+      const ctx = canvas.getContext('2d')
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      canvas.width = rect.width
+      canvas.height = rect.height
+      ctx.putImageData(imageData, 0, 0)
+    }
+    resizeCanvas()
+    window.addEventListener('resize', resizeCanvas)
+    return () => window.removeEventListener('resize', resizeCanvas)
+  }, [])
+
   function initCanvas() {
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')
     ctx.fillStyle = '#ffffff'
     ctx.fillRect(0, 0, canvas.width, canvas.height)
+    historyRef.current = []
+    historyIndexRef.current = -1
     saveHistory()
-  }
-
-  function saveHistory() {
-    const dataUrl = canvasRef.current.toDataURL()
-    setHistory(prev => {
-      const newHistory = prev.slice(0, historyIndex + 1)
-      newHistory.push(dataUrl)
-      if (newHistory.length > MAX_HISTORY) newHistory.shift()
-      return newHistory
-    })
-    setHistoryIndex(prev => Math.min(prev + 1, MAX_HISTORY - 1))
-  }
-
-  function undo() {
-    if (historyIndex <= 0) return
-    skipSave.current = true
-    const newIndex = historyIndex - 1
-    setHistoryIndex(newIndex)
-    restoreState(history[newIndex])
-  }
-
-  function redo() {
-    if (historyIndex >= history.length - 1) return
-    skipSave.current = true
-    const newIndex = historyIndex + 1
-    setHistoryIndex(newIndex)
-    restoreState(history[newIndex])
-  }
-
-  function restoreState(dataUrl) {
-    const img = new Image()
-    img.onload = () => {
-      const ctx = canvasRef.current.getContext('2d')
-      ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height)
-      ctx.drawImage(img, 0, 0)
-    }
-    img.src = dataUrl
   }
 
   async function loadDrawings() {
@@ -108,14 +127,14 @@ export default function DrawingBoard() {
     if (!isDrawing) return
     const pos = getPos(e)
     const ctx = canvasRef.current.getContext('2d')
-    if (isEraser) {
+    if (tool === 'eraser') {
       ctx.globalCompositeOperation = 'destination-out'
       ctx.strokeStyle = 'rgba(0,0,0,1)'
     } else {
       ctx.globalCompositeOperation = 'source-over'
       ctx.strokeStyle = color
     }
-    ctx.lineWidth = isEraser ? brushSize * 3 : brushSize
+    ctx.lineWidth = tool === 'eraser' ? brushSize * 3 : brushSize
     ctx.lineCap = 'round'
     ctx.lineJoin = 'round'
     ctx.beginPath()
@@ -130,8 +149,7 @@ export default function DrawingBoard() {
     setIsDrawing(false)
     const ctx = canvasRef.current.getContext('2d')
     ctx.globalCompositeOperation = 'source-over'
-    if (!skipSave.current) saveHistory()
-    skipSave.current = false
+    saveHistory()
   }
 
   function clearCanvas() {
@@ -143,9 +161,11 @@ export default function DrawingBoard() {
   }
 
   async function saveDrawing() {
+    setSaving(true)
     const dataUrl = canvasRef.current.toDataURL()
     await supabase.from('drawings').insert({ room_id: room.id, data_url: dataUrl })
     loadDrawings()
+    setSaving(false)
     notify(room.id, 'drawing', 'a fait un dessin 🎨', username)
   }
 
@@ -153,8 +173,7 @@ export default function DrawingBoard() {
     const img = new Image()
     img.onload = () => {
       clearCanvas()
-      canvasRef.current.getContext('2d').drawImage(img, 0, 0)
-      saveHistory()
+      canvasRef.current.getContext('2d').drawImage(img, 0, 0, canvasRef.current.width, canvasRef.current.height)
     }
     img.src = d.data_url
   }
@@ -174,43 +193,64 @@ export default function DrawingBoard() {
   return (
     <div className="page drawing-page">
       <div className="page-header">
-        <PenLine size={24} />
+        <Pen size={24} />
         <h2>Dessin Partagé</h2>
       </div>
 
-      <div className="drawing-tools">
-        <div className="tool-group">
-          {COLORS.map(c => (
-            <button key={c} className={`color-dot ${color === c && !isEraser ? 'active' : ''}`}
-              style={{ background: c }} onClick={() => { setColor(c); setIsEraser(false) }} />
-          ))}
-          <button className={`btn-icon ${isEraser ? 'active-eraser' : ''}`}
-            style={isEraser ? { background: 'var(--secondary)', color: 'var(--primary)' } : {}}
-            onClick={() => setIsEraser(!isEraser)} title="Gomme">
-            <Eraser size={16} />
-          </button>
-        </div>
-        <div className="tool-group">
-          <button className="btn-icon" onClick={() => setBrushSize(s => Math.max(2, s - 2))}><Minus size={16} /></button>
-          <span className="brush-label">{brushSize}px</span>
-          <button className="btn-icon" onClick={() => setBrushSize(s => Math.min(20, s + 2))}><Plus size={16} /></button>
-        </div>
-        <div className="tool-group">
-          <button className="btn-icon" onClick={undo} disabled={historyIndex <= 0}><Undo2 size={16} /></button>
-          <button className="btn-icon" onClick={redo} disabled={historyIndex >= history.length - 1}><Redo2 size={16} /></button>
-        </div>
-        <div className="tool-group">
-          <button className="btn btn-sm" onClick={clearCanvas}><Trash2 size={14} /> Effacer</button>
-          <button className="btn btn-sm" onClick={saveDrawing}><Save size={14} /> Sauver</button>
-          <button className="btn btn-sm" onClick={downloadCurrent}><Download size={14} /> Télécharger</button>
+      {/* Toolbar */}
+      <div className="draw-toolbar">
+        <button className={`draw-tool-btn ${tool === 'pen' ? 'active' : ''}`} onClick={() => setTool('pen')} title="Crayon">
+          <Pen size={16} />
+        </button>
+        <button className={`draw-tool-btn ${tool === 'eraser' ? 'active' : ''}`} onClick={() => setTool('eraser')} title="Gomme">
+          <Eraser size={16} />
+        </button>
+        <div className="draw-separator" />
+        <button className="draw-tool-btn" onClick={undo} disabled={tool === 'eraser'}>
+          <Undo2 size={16} />
+        </button>
+        <button className="draw-tool-btn" onClick={redo} disabled={tool === 'eraser'}>
+          <Redo2 size={16} />
+        </button>
+        <div className="draw-separator" />
+        <button className={`draw-tool-btn ${showColors ? 'active' : ''}`} onClick={() => setShowColors(!showColors)}>
+          <Palette size={16} />
+        </button>
+        <button className="draw-tool-btn draw-tool-danger" onClick={clearCanvas}>
+          <Trash2 size={16} />
+        </button>
+        {saving && <span className="draw-saving">Sauvegarde...</span>}
+        <div className="draw-toolbar-right">
+          <div className="draw-size-preview" style={{ width: Math.max(4, brushSize), height: Math.max(4, brushSize) }} />
+          <input
+            type="range"
+            min="1"
+            max="20"
+            value={brushSize}
+            onChange={e => setBrushSize(Number(e.target.value))}
+            className="draw-size-slider"
+          />
         </div>
       </div>
 
-      <div className="canvas-box">
+      {/* Color picker */}
+      {showColors && (
+        <div className="draw-color-bar">
+          {COLORS.map(c => (
+            <button
+              key={c}
+              className={`draw-color-dot ${color === c && tool === 'pen' ? 'active' : ''}`}
+              style={{ backgroundColor: c }}
+              onClick={() => { setColor(c); setTool('pen') }}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Canvas */}
+      <div className="draw-canvas-box" ref={containerRef}>
         <canvas
           ref={canvasRef}
-          width={800}
-          height={500}
           className="drawing-canvas"
           onMouseDown={startDraw}
           onMouseMove={draw}
@@ -222,6 +262,17 @@ export default function DrawingBoard() {
         />
       </div>
 
+      {/* Action buttons */}
+      <div className="draw-actions">
+        <button className="btn btn-sm btn-secondary" onClick={saveDrawing} disabled={saving}>
+          <Save size={14} /> Sauver
+        </button>
+        <button className="btn btn-sm btn-secondary" onClick={downloadCurrent}>
+          <Download size={14} /> Télécharger
+        </button>
+      </div>
+
+      {/* Saved drawings */}
       {!loading && saved.length > 0 && (
         <div className="saved-section">
           <h3>Dessins sauvegardés</h3>

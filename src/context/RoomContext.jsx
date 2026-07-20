@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { supabase, setRoomToken } from '../lib/supabase'
+import { hashPin } from '../lib/crypto'
 
 const RoomContext = createContext(null)
 
@@ -16,18 +17,22 @@ async function ensureSession(roomId, displayName) {
     localStorage.setItem('nh_room_token_' + roomId, token)
   }
   setRoomToken(token)
-  const { data: existing } = await supabase
-    .from('room_sessions')
-    .select('id')
-    .eq('room_id', roomId)
-    .eq('user_token', token)
-    .maybeSingle()
-  if (!existing) {
-    await supabase.from('room_sessions').insert({
-      room_id: roomId,
-      user_token: token,
-      display_name: displayName || 'Anonyme',
-    })
+  try {
+    const { data: existing } = await supabase
+      .from('room_sessions')
+      .select('id')
+      .eq('room_id', roomId)
+      .eq('user_token', token)
+      .maybeSingle()
+    if (!existing) {
+      await supabase.from('room_sessions').insert({
+        room_id: roomId,
+        user_token: token,
+        display_name: displayName || 'Anonyme',
+      })
+    }
+  } catch (e) {
+    setRoomToken(token)
   }
 }
 
@@ -46,16 +51,28 @@ export function RoomProvider({ children }) {
     if (!saved) { setLoading(false); return }
     const token = localStorage.getItem('nh_room_token_' + saved)
     if (token) setRoomToken(token)
-    supabase.from('rooms').select('*').eq('id', saved).single().then(async ({ data, error }) => {
-      if (data) {
-        await ensureSession(data.id, username)
-        setRoom(data)
-      } else {
-        localStorage.removeItem('nh_room')
-        setRoomToken(null)
+
+    async function loadRoom(retries = 3) {
+      for (let i = 0; i < retries; i++) {
+        const { data, error } = await supabase
+          .from('rooms').select('*').eq('id', saved).single()
+        if (data) {
+          await ensureSession(data.id, username)
+          setRoom(data)
+          setLoading(false)
+          return
+        }
+        if (error && error.code === 'PGRST116') {
+          localStorage.removeItem('nh_room')
+          setRoomToken(null)
+          setLoading(false)
+          return
+        }
+        if (i < retries - 1) await new Promise(r => setTimeout(r, 1000 * (i + 1)))
       }
       setLoading(false)
-    })
+    }
+    loadRoom()
   }, [])
 
   const createRoom = useCallback(async (name) => {
@@ -105,6 +122,14 @@ export function RoomProvider({ children }) {
     return { error }
   }, [room])
 
+  const setAppLock = useCallback(async (pin) => {
+    if (!room) return
+    const hashed = pin ? await hashPin(pin) : null
+    const { data, error } = await supabase.from('rooms').update({ app_lock: hashed }).eq('id', room.id).select().single()
+    if (data) setRoom(data)
+    return { error }
+  }, [room])
+
   const leaveRoom = useCallback(() => {
     const roomId = room?.id
     if (roomId) {
@@ -117,7 +142,7 @@ export function RoomProvider({ children }) {
   }, [room])
 
   return (
-    <RoomContext.Provider value={{ room, loading, createRoom, joinRoom, updateRoom, setRoomPassword, leaveRoom, username, setUsername }}>
+    <RoomContext.Provider value={{ room, loading, createRoom, joinRoom, updateRoom, setRoomPassword, setAppLock, leaveRoom, username, setUsername }}>
       {children}
     </RoomContext.Provider>
   )

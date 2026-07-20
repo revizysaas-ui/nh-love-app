@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Settings as SettingsIcon, Heart, MapPin, Calendar, Save, Copy, Check, Search, Loader, Shield, Lock, Smartphone } from 'lucide-react'
 import { useRoom } from '../context/RoomContext'
 import { hashPin } from '../lib/crypto'
-import { getAppLockHash, setAppLockHash } from './AppLock'
 
 async function geocode(city) {
   if (!city.trim()) return null
@@ -16,7 +15,7 @@ async function geocode(city) {
 }
 
 export default function Settings() {
-  const { room, updateRoom, setRoomPassword } = useRoom()
+  const { room, updateRoom, setRoomPassword, setAppLock } = useRoom()
   const [form, setForm] = useState(room || {})
   const [saved, setSaved] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -28,7 +27,7 @@ export default function Settings() {
   const [appLockPin, setAppLockPin] = useState('')
   const [appLockSaved, setAppLockSaved] = useState(false)
   const [appLockLoading, setAppLockLoading] = useState(false)
-  const hasAppLock = !!getAppLockHash()
+  const hasAppLock = !!room?.app_lock
 
   if (!room) return null
 
@@ -74,12 +73,7 @@ export default function Settings() {
 
   async function handleAppLock() {
     setAppLockLoading(true)
-    if (appLockPin.trim()) {
-      const h = await hashPin(appLockPin)
-      setAppLockHash(h)
-    } else {
-      setAppLockHash(null)
-    }
+    await setAppLock(appLockPin.trim() || null)
     setAppLockLoading(false)
     setAppLockSaved(true)
     setAppLockPin('')

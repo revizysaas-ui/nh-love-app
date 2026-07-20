@@ -11,3 +11,14 @@ CREATE TABLE IF NOT EXISTS game_morpion (
 ALTER TABLE game_morpion ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Public game_morpion" ON game_morpion;
 CREATE POLICY "Public game_morpion" ON game_morpion FOR ALL USING (true) WITH CHECK (true);
+
+-- Ajouter la table à la publication Realtime si elle n'y est pas déjà
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'game_morpion'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE game_morpion;
+  END IF;
+END
+$$;

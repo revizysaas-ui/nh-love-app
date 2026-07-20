@@ -41,6 +41,7 @@ const DIFFICULTIES = [
 const ROULETTE_COLORS = ['#8a79ab', '#e8b4c8', '#c4a8d8', '#b8a5d4', '#d47a9e', '#9b8ec4', '#f0a0c0', '#a690c0', '#d4b0d0', '#c090b0', '#e0a0d0', '#b0a0d0']
 
 function TruthOrDare() {
+  const { room, username } = useRoom()
   const [questions, setQuestions] = useState([])
   const [current, setCurrent] = useState(null)
   const [type, setType] = useState('truth')
@@ -48,6 +49,7 @@ function TruthOrDare() {
   const [used, setUsed] = useState(new Set())
   const [loading, setLoading] = useState(true)
   const [revealed, setRevealed] = useState(false)
+  const notifiedRef = useRef(false)
 
   useEffect(() => { loadQuestions() }, [])
 
@@ -58,6 +60,10 @@ function TruthOrDare() {
   }
 
   function pick() {
+    if (!notifiedRef.current && room) {
+      notify(room.id, 'game', 'a lancé Vérité ou Action 🎮', username)
+      notifiedRef.current = true
+    }
     const filtered = questions.filter(q => q.type === type && q.difficulty === difficulty && !used.has(q.id))
     if (filtered.length === 0) {
       setUsed(new Set())
@@ -202,6 +208,7 @@ function QuizGame() {
     setIndex(0)
     setAnswers([])
     setPhase('answering')
+    notify(room.id, 'game', 'a lancé le Quiz Amour 🧠', username)
 
     const { data } = await supabase.from('quiz_sessions').insert({
       room_id: room.id,
@@ -411,8 +418,13 @@ function DefisGame() {
   const [used, setUsed] = useState(new Set())
   const [showNsfw, setShowNsfw] = useState(false)
   const fileRef = useRef(null)
+  const notifiedRef = useRef(false)
 
   function pick() {
+    if (!notifiedRef.current && room) {
+      notify(room.id, 'game', 'a lancé les Défis 🎯', username)
+      notifiedRef.current = true
+    }
     const available = DEFIS_DATA.filter((_, i) => !used.has(i))
     if (available.length === 0) { setUsed(new Set()); return }
     const idx = DEFIS_DATA.indexOf(available[Math.floor(Math.random() * available.length)])
@@ -464,13 +476,19 @@ function DefisGame() {
 }
 
 function CultureGame() {
+  const { room, username } = useRoom()
   const [index, setIndex] = useState(null)
   const [answer, setAnswer] = useState(null)
   const [score, setScore] = useState(0)
   const [done, setDone] = useState(false)
   const [shuffled, setShuffled] = useState([])
+  const notifiedRef = useRef(false)
 
   function start() {
+    if (!notifiedRef.current && room) {
+      notify(room.id, 'game', 'a lancé Culture G 📚', username)
+      notifiedRef.current = true
+    }
     const s = [...CULTURE_QUESTIONS].sort(() => Math.random() - 0.5).slice(0, 8)
     setShuffled(s)
     setIndex(0)
@@ -566,11 +584,13 @@ function CultureGame() {
 }
 
 function RoueGame() {
+  const { room, username } = useRoom()
   const [choices, setChoices] = useState(['Film', 'Resto', 'Balade', 'Jeu', 'Série', 'Cuisine'])
   const [input, setInput] = useState('')
   const [result, setResult] = useState(null)
   const [spinning, setSpinning] = useState(false)
   const [rotation, setRotation] = useState(0)
+  const notifiedRef = useRef(false)
 
   function addChoice() {
     if (!input.trim() || choices.length >= 8) return
@@ -585,6 +605,10 @@ function RoueGame() {
 
   function spin() {
     if (spinning) return
+    if (!notifiedRef.current && room) {
+      notify(room.id, 'game', 'a lancé la Roue de la Chance 🎡', username)
+      notifiedRef.current = true
+    }
     setSpinning(true)
     setResult(null)
     const newRotation = rotation + 1440 + Math.random() * 720
@@ -652,33 +676,51 @@ function RoueGame() {
   )
 }
 
+function calculateMorpionWinner(squares) {
+  const lines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]]
+  for (const [a,b,c] of lines) {
+    if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) return squares[a]
+  }
+  if (squares.every(s => s)) return 'draw'
+  return null
+}
+
 function MorpionGame() {
-  const { room } = useRoom()
+  const { room, username } = useRoom()
   const [board, setBoard] = useState(Array(9).fill(null))
   const [xIsNext, setXIsNext] = useState(true)
   const [winner, setWinner] = useState(null)
   const [scores, setScores] = useState({ '💕': 0, '❤️': 0 })
   const [gameId, setGameId] = useState(null)
+  const notifiedRef = useRef(false)
+  const gameIdRef = useRef(null)
+
+  useEffect(() => { gameIdRef.current = gameId }, [gameId])
 
   useEffect(() => {
     if (!room) return
     loadGame()
     const sub = supabase
       .channel('morpion-' + room.id)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'game_morpion', filter: `room_id=eq.${room.id}` }, (payload) => {
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'game_morpion', filter: `room_id=eq.${room.id}` }, (payload) => {
         if (payload.new) {
-          setBoard(payload.new.board || Array(9).fill(null))
+          const newBoard = Array.isArray(payload.new.board) ? payload.new.board : (typeof payload.new.board === 'string' ? JSON.parse(payload.new.board) : Array(9).fill(null))
+          setBoard(newBoard)
           setXIsNext(payload.new.x_is_next)
           setScores(payload.new.scores || { '💕': 0, '❤️': 0 })
-          const w = calculateWinner(payload.new.board || [])
-          setWinner(w)
+          setWinner(calculateMorpionWinner(newBoard))
         }
       })
-      .subscribe()
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          loadGame()
+        }
+      })
     return () => supabase.removeChannel(sub)
-  }, [room])
+  }, [room?.id])
 
   async function loadGame() {
+    if (!room) return
     const { data } = await supabase
       .from('game_morpion')
       .select('*')
@@ -687,21 +729,24 @@ function MorpionGame() {
       .limit(1)
       .maybeSingle()
     if (data) {
-      setBoard(data.board || Array(9).fill(null))
+      const b = Array.isArray(data.board) ? data.board : (typeof data.board === 'string' ? JSON.parse(data.board) : Array(9).fill(null))
+      setBoard(b)
       setXIsNext(data.x_is_next)
       setScores(data.scores || { '💕': 0, '❤️': 0 })
       setGameId(data.id)
+      setWinner(calculateMorpionWinner(b))
     }
   }
 
   async function syncGame(newBoard, newXIsNext, newScores) {
-    if (gameId) {
+    const currentGameId = gameIdRef.current
+    if (currentGameId) {
       await supabase.from('game_morpion').update({
         board: newBoard,
         x_is_next: newXIsNext,
         scores: newScores,
         updated_at: new Date().toISOString(),
-      }).eq('id', gameId)
+      }).eq('id', currentGameId)
     } else {
       const { data } = await supabase.from('game_morpion').insert({
         room_id: room.id,
@@ -709,25 +754,20 @@ function MorpionGame() {
         x_is_next: newXIsNext,
         scores: newScores,
       }).select().single()
-      if (data) setGameId(data.id)
+      if (data) { gameIdRef.current = data.id; setGameId(data.id) }
     }
-  }
-
-  function calculateWinner(squares) {
-    const lines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]]
-    for (const [a,b,c] of lines) {
-      if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) return squares[a]
-    }
-    if (squares.every(s => s)) return 'draw'
-    return null
   }
 
   function handleClick(i) {
     if (board[i] || winner) return
+    if (!notifiedRef.current && room) {
+      notify(room.id, 'game', 'a lancé le Morpion ❌⭕', username)
+      notifiedRef.current = true
+    }
     const newBoard = [...board]
     newBoard[i] = xIsNext ? '💕' : '❤️'
     const newXIsNext = !xIsNext
-    const w = calculateWinner(newBoard)
+    const w = calculateMorpionWinner(newBoard)
     let newScores = { ...scores }
     if (w && w !== 'draw') {
       newScores = { ...scores, [w]: scores[w] + 1 }
@@ -747,7 +787,7 @@ function MorpionGame() {
     syncGame(fresh, true, scores)
   }
 
-  const w = calculateWinner(board)
+  const w = calculateMorpionWinner(board)
   const status = w === 'draw' ? 'Match nul !' : w ? `${w} a gagné !` : `Tour de ${xIsNext ? '💕' : '❤️'}`
 
   return (
@@ -776,10 +816,16 @@ function MorpionGame() {
 }
 
 function WouldYouRather() {
+  const { room, username } = useRoom()
   const [question, setQuestion] = useState(null)
   const [choice, setChoice] = useState(null)
+  const notifiedRef = useRef(false)
 
   function start() {
+    if (!notifiedRef.current && room) {
+      notify(room.id, 'game', 'a lancé Tu Préfères ⚡', username)
+      notifiedRef.current = true
+    }
     setQuestion(Math.floor(Math.random() * WYR_QUESTIONS.length))
     setChoice(null)
   }

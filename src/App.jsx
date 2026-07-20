@@ -1,4 +1,4 @@
-import { useEffect, lazy, Suspense, useState } from 'react'
+import { useEffect, lazy, useState } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { RoomProvider, useRoom } from './context/RoomContext'
 import { NotificationProvider, useNotifications } from './context/NotificationContext'
@@ -7,7 +7,7 @@ import Layout from './components/Layout'
 import Join from './components/Join'
 import Home from './components/Home'
 import Settings from './components/Settings'
-import AppLock, { getAppLockHash } from './components/AppLock'
+import AppLock from './components/AppLock'
 
 const Messages = lazy(() => import('./components/Messages'))
 const Gallery = lazy(() => import('./components/Gallery'))
@@ -59,8 +59,13 @@ function AppRoutes() {
 }
 
 function AppShell() {
-  const [locked, setLocked] = useState(() => !!getAppLockHash())
-  const hasLock = !!getAppLockHash()
+  const { room } = useRoom()
+  const [locked, setLocked] = useState(() => !!room?.app_lock)
+  const hasLock = !!room?.app_lock
+
+  useEffect(() => {
+    if (room && room.app_lock) setLocked(true)
+  }, [room?.app_lock])
 
   if (hasLock && locked) {
     return <AppLock onUnlock={() => setLocked(false)} />

@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { Settings as SettingsIcon, Heart, MapPin, Calendar, Save, Copy, Check, Search, Loader, Shield, Lock } from 'lucide-react'
+import { Settings as SettingsIcon, Heart, MapPin, Calendar, Save, Copy, Check, Search, Loader, Shield, Lock, Smartphone } from 'lucide-react'
 import { useRoom } from '../context/RoomContext'
 import { hashPin } from '../lib/crypto'
+import { getAppLockHash, setAppLockHash } from './AppLock'
 
 async function geocode(city) {
   if (!city.trim()) return null
@@ -24,6 +25,10 @@ export default function Settings() {
   const [newPassword, setNewPassword] = useState('')
   const [passwordSaved, setPasswordSaved] = useState(false)
   const [passwordLoading, setPasswordLoading] = useState(false)
+  const [appLockPin, setAppLockPin] = useState('')
+  const [appLockSaved, setAppLockSaved] = useState(false)
+  const [appLockLoading, setAppLockLoading] = useState(false)
+  const hasAppLock = !!getAppLockHash()
 
   if (!room) return null
 
@@ -65,6 +70,20 @@ export default function Settings() {
     setPasswordSaved(true)
     setNewPassword('')
     setTimeout(() => setPasswordSaved(false), 2000)
+  }
+
+  async function handleAppLock() {
+    setAppLockLoading(true)
+    if (appLockPin.trim()) {
+      const h = await hashPin(appLockPin)
+      setAppLockHash(h)
+    } else {
+      setAppLockHash(null)
+    }
+    setAppLockLoading(false)
+    setAppLockSaved(true)
+    setAppLockPin('')
+    setTimeout(() => setAppLockSaved(false), 2000)
   }
 
   function copyCode() {
@@ -118,6 +137,39 @@ export default function Settings() {
               {hasPassword
                 ? 'Un mot de passe est requis pour rejoindre. Laisse vide pour le retirer.'
                 : 'Ajoute un mot de passe pour protéger ton espace.'}
+            </small>
+          </div>
+        </div>
+      </div>
+
+      <div className="settings-card">
+        <h3><Smartphone size={18} /> Verrouillage de l'app</h3>
+        <div className="settings-grid">
+          <div className="field">
+            <label>PIN de l'app {hasAppLock && <span style={{ color: 'var(--chart-3)' }}>(actif ✓)</span>}</label>
+            <div className="field-row">
+              <input
+                type="password"
+                placeholder={hasAppLock ? '••••' : 'Aucun PIN'}
+                value={appLockPin}
+                onChange={e => setAppLockPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                maxLength={4}
+                inputMode="numeric"
+                style={{ flex: 1 }}
+              />
+              <button
+                className="btn btn-sm btn-secondary"
+                onClick={handleAppLock}
+                disabled={appLockLoading}
+              >
+                {appLockLoading ? <Loader size={14} /> : <Lock size={14} />}
+              </button>
+            </div>
+            {appLockSaved && <small style={{ color: 'var(--chart-3)', fontSize: 12 }}>Enregistré !</small>}
+            <small style={{ fontSize: 12, color: 'var(--muted-foreground)', marginTop: 4, display: 'block' }}>
+              {hasAppLock
+                ? 'Un PIN protège l\'app au démarrage. Laisse vide pour le retirer.'
+                : 'Ajoute un PIN pour protéger l\'app des regards indiscrets.'}
             </small>
           </div>
         </div>

@@ -653,10 +653,65 @@ function RoueGame() {
 }
 
 function MorpionGame() {
+  const { room } = useRoom()
   const [board, setBoard] = useState(Array(9).fill(null))
   const [xIsNext, setXIsNext] = useState(true)
   const [winner, setWinner] = useState(null)
   const [scores, setScores] = useState({ '💕': 0, '❤️': 0 })
+  const [gameId, setGameId] = useState(null)
+
+  useEffect(() => {
+    if (!room) return
+    loadGame()
+    const sub = supabase
+      .channel('morpion-' + room.id)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'game_morpion', filter: `room_id=eq.${room.id}` }, (payload) => {
+        if (payload.new) {
+          setBoard(payload.new.board || Array(9).fill(null))
+          setXIsNext(payload.new.x_is_next)
+          setScores(payload.new.scores || { '💕': 0, '❤️': 0 })
+          const w = calculateWinner(payload.new.board || [])
+          setWinner(w)
+        }
+      })
+      .subscribe()
+    return () => supabase.removeChannel(sub)
+  }, [room])
+
+  async function loadGame() {
+    const { data } = await supabase
+      .from('game_morpion')
+      .select('*')
+      .eq('room_id', room.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (data) {
+      setBoard(data.board || Array(9).fill(null))
+      setXIsNext(data.x_is_next)
+      setScores(data.scores || { '💕': 0, '❤️': 0 })
+      setGameId(data.id)
+    }
+  }
+
+  async function syncGame(newBoard, newXIsNext, newScores) {
+    if (gameId) {
+      await supabase.from('game_morpion').update({
+        board: newBoard,
+        x_is_next: newXIsNext,
+        scores: newScores,
+        updated_at: new Date().toISOString(),
+      }).eq('id', gameId)
+    } else {
+      const { data } = await supabase.from('game_morpion').insert({
+        room_id: room.id,
+        board: newBoard,
+        x_is_next: newXIsNext,
+        scores: newScores,
+      }).select().single()
+      if (data) setGameId(data.id)
+    }
+  }
 
   function calculateWinner(squares) {
     const lines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]]
@@ -671,21 +726,25 @@ function MorpionGame() {
     if (board[i] || winner) return
     const newBoard = [...board]
     newBoard[i] = xIsNext ? '💕' : '❤️'
-    setBoard(newBoard)
-    setXIsNext(!xIsNext)
+    const newXIsNext = !xIsNext
     const w = calculateWinner(newBoard)
+    let newScores = { ...scores }
     if (w && w !== 'draw') {
-      setWinner(w)
-      setScores(s => ({ ...s, [w]: s[w] + 1 }))
-    } else if (w === 'draw') {
-      setWinner('draw')
+      newScores = { ...scores, [w]: scores[w] + 1 }
     }
+    setBoard(newBoard)
+    setXIsNext(newXIsNext)
+    if (w) setWinner(w)
+    setScores(newScores)
+    syncGame(newBoard, newXIsNext, newScores)
   }
 
-  function reset() {
-    setBoard(Array(9).fill(null))
+  async function reset() {
+    const fresh = Array(9).fill(null)
+    setBoard(fresh)
     setXIsNext(true)
     setWinner(null)
+    syncGame(fresh, true, scores)
   }
 
   const w = calculateWinner(board)

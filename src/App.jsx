@@ -1,4 +1,4 @@
-import { useEffect, lazy, Suspense } from 'react'
+import { useEffect, lazy, Suspense, useState } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { RoomProvider, useRoom } from './context/RoomContext'
 import { NotificationProvider, useNotifications } from './context/NotificationContext'
@@ -7,6 +7,7 @@ import Layout from './components/Layout'
 import Join from './components/Join'
 import Home from './components/Home'
 import Settings from './components/Settings'
+import AppLock, { getAppLockHash } from './components/AppLock'
 
 const Messages = lazy(() => import('./components/Messages'))
 const Gallery = lazy(() => import('./components/Gallery'))
@@ -57,6 +58,26 @@ function AppRoutes() {
   )
 }
 
+function AppShell() {
+  const [locked, setLocked] = useState(() => !!getAppLockHash())
+  const hasLock = !!getAppLockHash()
+
+  if (hasLock && locked) {
+    return <AppLock onUnlock={() => setLocked(false)} />
+  }
+
+  return (
+    <>
+      <AppRoutes />
+      {hasLock && (
+        <button className="app-lock-fab" onClick={() => setLocked(true)} title="Verrouiller">
+          🔒
+        </button>
+      )}
+    </>
+  )
+}
+
 export default function App() {
   useEffect(() => {
     const splash = document.getElementById('splash')
@@ -70,7 +91,7 @@ export default function App() {
     <ErrorBoundary>
       <RoomProvider>
         <NotificationProvider>
-          <AppRoutes />
+          <AppShell />
         </NotificationProvider>
       </RoomProvider>
     </ErrorBoundary>

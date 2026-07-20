@@ -1388,3 +1388,41 @@ body {
   .input-group { padding: 8px 12px; }
   .input-group input { font-size: 15px; letter-spacing: 2px; }
 }
+
+/* AppLock */
+.applock-screen {
+  position: fixed; inset: 0; z-index: 9999;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, var(--background) 0%, var(--muted) 100%);
+}
+.applock-logo { text-align: center; margin-bottom: 32px; }
+.applock-logo h1 { font-size: 28px; font-weight: 800; margin: 8px 0 0; background: linear-gradient(135deg, var(--primary), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.applock-content { display: flex; flex-direction: column; align-items: center; }
+.applock-title { font-size: 18px; font-weight: 600; margin: 0 0 8px; color: var(--foreground); }
+.applock-error { color: var(--destructive); font-size: 14px; margin: 0 0 8px; animation: shakeX 0.4s; }
+.applock-dots { display: flex; gap: 16px; margin-bottom: 32px; outline: none; }
+.applock-dot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--primary); background: transparent; transition: all 0.2s; }
+.applock-dot.filled { background: var(--primary); transform: scale(1.15); }
+.applock-dot.shake { border-color: var(--destructive); animation: shakeX 0.4s; }
+@keyframes shakeX { 0%,100% { transform: translateX(0); } 20%,60% { transform: translateX(-6px); } 40%,80% { transform: translateX(6px); } }
+.applock-keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.applock-key {
+  width: 64px; height: 64px; border-radius: 50%;
+  border: 1px solid var(--border); background: var(--card);
+  font-size: 24px; font-weight: 600; color: var(--foreground);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s; -webkit-tap-highlight-color: transparent;
+}
+.applock-key:active { background: var(--primary); color: var(--primary-foreground); transform: scale(0.92); }
+.applock-key-del { background: transparent; border-color: transparent; }
+.applock-key-del:active { background: var(--destructive); color: white; }
+.app-lock-fab {
+  position: fixed; bottom: 80px; right: 16px; z-index: 100;
+  width: 44px; height: 44px; border-radius: 50%;
+  background: var(--card); border: 1px solid var(--border);
+  font-size: 18px; cursor: pointer;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+}
+.app-lock-fab:active { transform: scale(0.9); }

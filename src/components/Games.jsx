@@ -901,7 +901,27 @@ const GAME_COMPONENTS = {
 }
 
 export default function Games() {
+  const { room, username, updateRoom } = useRoom()
   const [active, setActive] = useState(null)
+
+  function openGame(key) {
+    setActive(key)
+    const game = GAMES_LIST.find(g => g.key === key)
+    updateRoom({ active_game: { game: key, by: username, label: game?.label } })
+  }
+
+  function closeGame() {
+    setActive(null)
+    if (room?.active_game?.by === username) {
+      updateRoom({ active_game: null })
+    }
+  }
+
+  useEffect(() => {
+    if (active === null && room?.active_game && room.active_game.by !== username) {
+      setActive(room.active_game.game)
+    }
+  }, [room?.active_game])
 
   if (active) {
     const game = GAMES_LIST.find(g => g.key === active)
@@ -909,7 +929,7 @@ export default function Games() {
     return (
       <div className="page games-page">
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-          <button className="btn-icon" onClick={() => setActive(null)}>
+          <button className="btn-icon" onClick={closeGame}>
             <ArrowLeft size={22} />
           </button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -930,11 +950,18 @@ export default function Games() {
         <Gamepad2 size={24} />
         <h2>Nos Jeux</h2>
       </div>
+      {room?.active_game && room.active_game.by !== username && (
+        <div className="active-game-banner" onClick={() => openGame(room.active_game.game)}>
+          <Gamepad2 size={18} />
+          <span><strong>{room.active_game.by}</strong> joue à <strong>{room.active_game.label}</strong></span>
+          <span className="active-game-join">Rejoindre →</span>
+        </div>
+      )}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         {GAMES_LIST.map(game => (
           <button
             key={game.key}
-            onClick={() => setActive(game.key)}
+            onClick={() => openGame(game.key)}
             style={{
               background: 'var(--card)',
               borderRadius: 'calc(var(--radius) * 1.5)',

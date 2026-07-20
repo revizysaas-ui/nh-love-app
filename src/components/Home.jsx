@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Heart, Calendar, MapPin, MessageCircle, Image, PenLine, Gamepad2, Sparkles, MessageCircleQuestion, LayoutDashboard, BarChart3, Gift, Hash, Music, AlertCircle, Target, HelpCircle, Cherry, Grid3X3, BookOpen, Zap } from 'lucide-react'
+import { Heart, Calendar, MapPin, MessageCircle, Image, PenLine, Gamepad2, Sparkles, MessageCircleQuestion, LayoutDashboard, BarChart3, Gift, Hash, Music, Target, HelpCircle, Cherry, Grid3X3, BookOpen, Zap } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useRoom } from '../context/RoomContext'
 import { getDailyQuestion } from '../data/daily-questions'
-import { supabase } from '../lib/supabase'
 
 const GAMES = [
   { key: 'truthdare', icon: Heart, label: 'Vérité ou Action', color: '#e74c8b' },
@@ -33,19 +32,9 @@ export default function Home() {
     setDays(Math.floor((now - start) / (1000 * 60 * 60 * 24)))
     setUntilDays(Math.floor((meeting - now) / (1000 * 60 * 60 * 24)))
     setDailyQ(getDailyQuestion())
+  }, [room])
 
-    const sub = supabase
-      .channel('home-notif-' + room.id)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `room_id=eq.${room.id}` }, (payload) => {
-        const n = payload.new
-        if (n.type === 'game' && n.author !== username) {
-          setActiveGame(n)
-          setTimeout(() => setActiveGame(null), 5000)
-        }
-      })
-      .subscribe()
-    return () => supabase.removeChannel(sub)
-  }, [room, username])
+  const partnerGame = room?.active_game && room.active_game.by !== username ? room.active_game : null
 
   if (!room) return null
 
@@ -90,10 +79,11 @@ export default function Home() {
         </div>
       </div>
 
-      {activeGame && (
-        <div className="game-notification" onClick={() => navigate('/jeux')}>
-          <AlertCircle size={18} />
-          <span><strong>{activeGame.author}</strong> {activeGame.message}</span>
+      {partnerGame && (
+        <div className="active-game-banner" onClick={() => navigate('/jeux')}>
+          <Gamepad2 size={18} />
+          <span><strong>{partnerGame.by}</strong> joue à <strong>{partnerGame.label}</strong></span>
+          <span className="active-game-join">Rejoindre →</span>
         </div>
       )}
 

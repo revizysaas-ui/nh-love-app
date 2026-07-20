@@ -73,6 +73,14 @@ export function RoomProvider({ children }) {
       setLoading(false)
     }
     loadRoom()
+
+    const sub = supabase
+      .channel('room-sync-' + saved)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `id=eq.${saved}` }, (payload) => {
+        if (payload.new) setRoom(prev => ({ ...prev, ...payload.new }))
+      })
+      .subscribe()
+    return () => supabase.removeChannel(sub)
   }, [])
 
   const createRoom = useCallback(async (name) => {

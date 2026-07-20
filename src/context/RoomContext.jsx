@@ -138,6 +138,15 @@ export function RoomProvider({ children }) {
     return { error }
   }, [room])
 
+  const updateGameState = useCallback(async (gameState) => {
+    if (!room) return
+    const current = room.active_game || {}
+    const merged = { ...current, ...gameState }
+    const payload = Object.keys(merged).length === 0 || (Object.keys(merged).length === 1 && merged.game === undefined) ? null : merged
+    const { data } = await supabase.from('rooms').update({ active_game: payload }).eq('id', room.id).select().single()
+    if (data) setRoom(data)
+  }, [room])
+
   const leaveRoom = useCallback(() => {
     const roomId = room?.id
     if (roomId) {
@@ -150,7 +159,7 @@ export function RoomProvider({ children }) {
   }, [room])
 
   return (
-    <RoomContext.Provider value={{ room, loading, createRoom, joinRoom, updateRoom, setRoomPassword, setAppLock, leaveRoom, username, setUsername }}>
+    <RoomContext.Provider value={{ room, loading, createRoom, joinRoom, updateRoom, setRoomPassword, setAppLock, updateGameState, leaveRoom, username, setUsername }}>
       {children}
     </RoomContext.Provider>
   )

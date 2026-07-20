@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Gamepad2, Heart, Sparkles, Shuffle, RotateCcw, AlertCircle, HelpCircle, MessageCircle, Target, BookOpen, Camera, Send, CheckCircle2, XCircle, UserCheck, Cherry, Grid3X3, ArrowLeft } from 'lucide-react'
 import { supabase } from '../lib/supabase'
@@ -42,15 +42,18 @@ const DIFFICULTIES = [
 const ROULETTE_COLORS = ['#8a79ab', '#e8b4c8', '#c4a8d8', '#b8a5d4', '#d47a9e', '#9b8ec4', '#f0a0c0', '#a690c0', '#d4b0d0', '#c090b0', '#e0a0d0', '#b0a0d0']
 
 function TruthOrDare() {
-  const { room, username } = useRoom()
+  const { room, username, updateGameState } = useRoom()
+  const gs = room?.active_game?.state || {}
   const [questions, setQuestions] = useState([])
-  const [current, setCurrent] = useState(null)
-  const [type, setType] = useState('truth')
-  const [difficulty, setDifficulty] = useState('soft')
-  const [used, setUsed] = useState(new Set())
   const [loading, setLoading] = useState(true)
-  const [revealed, setRevealed] = useState(false)
+  const [usedIds, setUsedIds] = useState([])
   const notifiedRef = useRef(false)
+
+  const currentCard = gs.currentCard || null
+  const cardType = gs.type || 'truth'
+  const cardDifficulty = gs.difficulty || 'soft'
+  const revealed = gs.revealed || false
+  const picker = gs.picker || null
 
   useEffect(() => { loadQuestions() }, [])
 
@@ -65,27 +68,27 @@ function TruthOrDare() {
       notify(room.id, 'game', 'a lancé Vérité ou Action 🎮', username)
       notifiedRef.current = true
     }
-    const filtered = questions.filter(q => q.type === type && q.difficulty === difficulty && !used.has(q.id))
-    if (filtered.length === 0) {
-      setUsed(new Set())
-      const fallback = questions.filter(q => q.type === type && q.difficulty === difficulty)
-      if (fallback.length > 0) {
-        setCurrent(fallback[Math.floor(Math.random() * fallback.length)])
-      }
-      return
-    }
-    const p = filtered[Math.floor(Math.random() * filtered.length)]
-    setCurrent(p)
-    setUsed(prev => new Set([...prev, p.id]))
-    setRevealed(false)
+    const filtered = questions.filter(q => q.type === cardType && q.difficulty === cardDifficulty && !usedIds.includes(q.id))
+    let pool = filtered.length > 0 ? filtered : questions.filter(q => q.type === cardType && q.difficulty === cardDifficulty)
+    if (pool.length === 0) return
+    const p = pool[Math.floor(Math.random() * pool.length)]
+    const newUsed = [...usedIds, p.id]
+    setUsedIds(newUsed)
+    updateGameState({ state: { currentCard: p, type: cardType, difficulty: cardDifficulty, revealed: false, picker: username } })
   }
+
+  function reveal() {
+    updateGameState({ state: { ...gs, revealed: true } })
+  }
+
+  const diff = DIFFICULTIES.find(d => d.key === cardDifficulty)
 
   return (
     <>
       <div className="game-controls">
         <div className="toggle-group">
           {['truth', 'dare'].map(t => (
-            <button key={t} className={`toggle-btn ${type === t ? 'active' : ''}`} onClick={() => { setType(t); setCurrent(null) }}>
+            <button key={t} className={`toggle-btn ${cardType === t ? 'active' : ''}`} onClick={() => updateGameState({ state: { ...gs, type: t, currentCard: null, revealed: false } })}>
               {t === 'truth' ? <AlertCircle size={16} /> : <Sparkles size={16} />}
               {t === 'truth' ? 'Vérité' : 'Action'}
             </button>
@@ -93,9 +96,9 @@ function TruthOrDare() {
         </div>
         <div className="difficulty-group">
           {DIFFICULTIES.map(d => (
-            <button key={d.key} className={`diff-btn ${difficulty === d.key ? 'active' : ''}`}
-              style={{ borderColor: difficulty === d.key ? d.color : 'transparent', background: difficulty === d.key ? `${d.color}15` : '' }}
-              onClick={() => { setDifficulty(d.key); setCurrent(null) }}>
+            <button key={d.key} className={`diff-btn ${cardDifficulty === d.key ? 'active' : ''}`}
+              style={{ borderColor: cardDifficulty === d.key ? d.color : 'transparent', background: cardDifficulty === d.key ? `${d.color}15` : '' }}
+              onClick={() => updateGameState({ state: { ...gs, difficulty: d.key, currentCard: null, revealed: false } })}>
               <span>{d.emoji}</span><span>{d.label}</span>
             </button>
           ))}
@@ -104,20 +107,20 @@ function TruthOrDare() {
 
       <div className="game-card-wrapper">
         {loading ? <div className="loading-screen"><div className="spinner" /></div>
-        : current ? (
-          <div className={`game-card ${revealed ? 'revealed' : ''}`} onClick={() => setRevealed(true)}>
+        : currentCard ? (
+          <div className={`game-card ${revealed ? 'revealed' : ''}`} onClick={!revealed ? reveal : undefined}>
             {!revealed ? (
               <div className="game-card-front">
                 <Heart size={40} />
-                <p>Clique pour découvrir</p>
-                <small>{type === 'truth' ? 'Vérité' : 'Action'} · {DIFFICULTIES.find(d => d.key === difficulty)?.label}</small>
+                <p>{picker === username ? 'Clique pour révéler' : `${picker} a tiré une carte...`}</p>
+                <small>{cardType === 'truth' ? 'Vérité' : 'Action'} · {diff?.label}</small>
               </div>
             ) : (
               <div className="game-card-back">
-                <div className="game-badge" style={{ background: DIFFICULTIES.find(d => d.key === difficulty)?.color }}>
-                  {DIFFICULTIES.find(d => d.key === difficulty)?.emoji} {type === 'truth' ? 'Vérité' : 'Action'}
+                <div className="game-badge" style={{ background: diff?.color }}>
+                  {diff?.emoji} {cardType === 'truth' ? 'Vérité' : 'Action'}
                 </div>
-                <p className="game-question">{current.question}</p>
+                <p className="game-question">{currentCard.question}</p>
               </div>
             )}
           </div>
@@ -133,7 +136,7 @@ function TruthOrDare() {
       <div className="game-actions">
         <button className="btn btn-primary btn-lg" onClick={pick}>
           <Shuffle size={20} />
-          {current ? 'Suivant' : 'Commencer'}
+          {currentCard ? 'Suivant' : 'Commencer'}
         </button>
       </div>
     </>
@@ -163,13 +166,14 @@ function QuizGame() {
   }, [room])
 
   async function loadActiveSession() {
+    if (!room) return
     const { data } = await supabase
       .from('quiz_sessions')
       .select('*')
       .eq('room_id', room.id)
       .order('created_at', { ascending: false })
       .limit(1)
-      .single()
+      .maybeSingle()
     if (!data) { setPhase('idle'); return }
     setSession(data)
 
@@ -223,7 +227,6 @@ function QuizGame() {
   function handleCreatorAnswer(choiceIndex) {
     const newAnswers = [...answers, choiceIndex]
     setAnswers(newAnswers)
-
     if (newAnswers.length === shuffled.length) {
       finishCreatorAnswers(newAnswers)
     } else {
@@ -240,7 +243,6 @@ function QuizGame() {
   function handlePartnerAnswer(choiceIndex) {
     const newAnswers = [...answers, choiceIndex]
     setAnswers(newAnswers)
-
     if (newAnswers.length === shuffled.length) {
       finishPartnerAnswers(newAnswers)
     } else {
@@ -414,48 +416,60 @@ function DailyGame() {
 }
 
 function DefisGame() {
-  const { room, username } = useRoom()
-  const [defi, setDefi] = useState(null)
-  const [used, setUsed] = useState(new Set())
-  const [showNsfw, setShowNsfw] = useState(false)
+  const { room, username, updateGameState } = useRoom()
+  const gs = room?.active_game?.state || {}
   const fileRef = useRef(null)
   const notifiedRef = useRef(false)
+
+  const currentDefi = gs.currentDefi || null
+  const defiIndex = gs.defiIndex ?? null
 
   function pick() {
     if (!notifiedRef.current && room) {
       notify(room.id, 'game', 'a lancé les Défis 🎯', username)
       notifiedRef.current = true
     }
-    const available = DEFIS_DATA.filter((_, i) => !used.has(i))
-    if (available.length === 0) { setUsed(new Set()); return }
-    const idx = DEFIS_DATA.indexOf(available[Math.floor(Math.random() * available.length)])
-    setDefi(DEFIS_DATA[idx])
-    setUsed(prev => new Set([...prev, idx]))
-    setShowNsfw(false)
+    let idx
+    do {
+      idx = Math.floor(Math.random() * DEFIS_DATA.length)
+    } while (idx === defiIndex && DEFIS_DATA.length > 1)
+    updateGameState({ state: { currentDefi: DEFIS_DATA[idx], defiIndex: idx, completedBy: null } })
+  }
+
+  function complete() {
+    updateGameState({ state: { ...gs, completedBy: username } })
   }
 
   return (
     <>
       <div className="game-card-wrapper">
-        {defi ? (
+        {currentDefi ? (
           <div className="game-card revealed" style={{ cursor: 'default', maxWidth: 440 }}>
             <Target size={32} />
-            <p className="game-question" style={{ textAlign: 'center', marginTop: 12 }}>{defi.defi}</p>
+            <p className="game-question" style={{ textAlign: 'center', marginTop: 12 }}>{currentDefi.defi}</p>
+            {gs.completedBy && (
+              <p style={{ textAlign: 'center', color: '#34d399', fontSize: 14, marginTop: 8, fontWeight: 600 }}>
+                ✅ Fait par {gs.completedBy}
+              </p>
+            )}
             <div style={{ display: 'flex', gap: 10, marginTop: 20, flexWrap: 'wrap', justifyContent: 'center' }}>
-              {defi.photo && (
-                <>
-                  <button className="btn btn-sm" style={{ background: 'var(--secondary)', color: 'var(--foreground)' }}
-                    onClick={() => fileRef.current?.click()}>
-                    <Camera size={14} /> Prendre une photo
-                  </button>
-                  <input ref={fileRef} type="file" accept="image/*" capture="environment" hidden
-                    onChange={(e) => {
-                      if (e.target.files?.[0]) {
-                        notify(room?.id, 'defi', `a relevé le défi "${defi.defi}" 📸`, username)
-                      }
-                    }} />
-                </>
+              {!gs.completedBy && (
+                <button className="btn btn-primary btn-sm" onClick={complete}>
+                  <CheckCircle2 size={14} /> C'est fait !
+                </button>
               )}
+              {currentDefi.photo && (
+                <button className="btn btn-sm" style={{ background: 'var(--secondary)', color: 'var(--foreground)' }}
+                  onClick={() => fileRef.current?.click()}>
+                  <Camera size={14} /> Photo
+                </button>
+              )}
+              <input ref={fileRef} type="file" accept="image/*" capture="environment" hidden
+                onChange={(e) => {
+                  if (e.target.files?.[0]) {
+                    notify(room?.id, 'defi', `a relevé le défi "${currentDefi.defi}" 📸`, username)
+                  }
+                }} />
             </div>
           </div>
         ) : (
@@ -469,7 +483,7 @@ function DefisGame() {
       <div className="game-actions">
         <button className="btn btn-primary btn-lg" onClick={pick}>
           <Shuffle size={20} />
-          {defi ? 'Nouveau défi' : 'Un défi !'}
+          {currentDefi ? 'Nouveau défi' : 'Un défi !'}
         </button>
       </div>
     </>
@@ -477,53 +491,58 @@ function DefisGame() {
 }
 
 function CultureGame() {
-  const { room, username } = useRoom()
-  const [index, setIndex] = useState(null)
-  const [answer, setAnswer] = useState(null)
-  const [score, setScore] = useState(0)
-  const [done, setDone] = useState(false)
-  const [shuffled, setShuffled] = useState([])
-  const notifiedRef = useRef(false)
+  const { room, username, updateGameState } = useRoom()
+  const gs = room?.active_game?.state || {}
+
+  const questions = gs.questions || []
+  const index = gs.index ?? null
+  const myAnswer = gs[`answer_${username}`] || null
+  const partnerKey = Object.keys(gs).find(k => k.startsWith('answer_') && k !== `answer_${username}`)
+  const partnerAnswer = partnerKey ? gs[partnerKey] : null
+  const done = gs.done || false
+  const started = gs.started || false
+
+  const bothAnswered = myAnswer !== null && partnerAnswer !== null
 
   function start() {
-    if (!notifiedRef.current && room) {
-      notify(room.id, 'game', 'a lancé Culture G 📚', username)
-      notifiedRef.current = true
-    }
     const s = [...CULTURE_QUESTIONS].sort(() => Math.random() - 0.5).slice(0, 8)
-    setShuffled(s)
-    setIndex(0)
-    setAnswer(null)
-    setScore(0)
-    setDone(false)
+    updateGameState({ state: { questions: s, index: 0, done: false, started: true } })
+    notify(room.id, 'game', 'a lancé Culture G 📚', username)
   }
 
   function handleAnswer(val) {
-    setAnswer(val)
-    if (val === shuffled[index].answer) setScore(s => s + 1)
+    updateGameState({ state: { ...gs, [`answer_${username}`]: val } })
   }
 
   function next() {
-    if (index < shuffled.length - 1) {
-      setIndex(i => i + 1)
-      setAnswer(null)
+    const nextIndex = index + 1
+    if (nextIndex < questions.length) {
+      const clean = { ...gs }
+      delete clean[`answer_${username}`]
+      delete clean[partnerKey]
+      updateGameState({ state: { ...clean, index: nextIndex } })
     } else {
-      setDone(true)
+      const clean = { ...gs }
+      delete clean[`answer_${username}`]
+      delete clean[partnerKey]
+      updateGameState({ state: { ...clean, done: true } })
     }
   }
 
-  if (done) {
+  const myScore = questions.filter((q, i) => {
+    const myAns = gs[`answer_${username}`]
+    return myAns !== null
+  }).length
+
+  if (done || (started && index === null)) {
+    let totalScore = 0
+    questions.forEach((q) => { if (q) totalScore++ })
     return (
       <div className="game-card-wrapper">
         <div className="game-card revealed" style={{ cursor: 'default' }}>
           <Sparkles size={48} />
           <p className="game-question" style={{ marginTop: 16, textAlign: 'center' }}>
-            Score : {score}/{shuffled.length}
-          </p>
-          <p style={{ color: 'var(--muted-foreground)', marginTop: 8, textAlign: 'center' }}>
-            {score === shuffled.length ? 'Génie ! 10/10 ! 🧠' :
-             score >= 6 ? 'Bien joué ! Bonne culture G !' :
-             'On apprend en s\'amusant !'}
+            Terminé ! Discutez de vos réponses ensemble 💬
           </p>
           <div className="game-actions">
             <button className="btn btn-primary" onClick={start}>
@@ -535,24 +554,27 @@ function CultureGame() {
     )
   }
 
-  if (index === null) {
+  if (!started || index === null) {
     return (
       <div className="game-card-wrapper">
         <div className="game-card idle" onClick={start}>
           <BookOpen size={48} />
           <p>Culture G</p>
-          <span>8 questions de culture générale vrai/faux</span>
+          <span>Répondez ensemble aux mêmes questions !</span>
         </div>
       </div>
     )
   }
 
-  const q = shuffled[index]
+  const q = questions[index]
+  const showResult = bothAnswered
+  const isCorrect = showResult ? myAnswer === q.answer : null
+
   return (
     <div className="game-card-wrapper">
       <div className="game-card revealed" style={{ cursor: 'default', maxWidth: 400 }}>
         <p style={{ fontSize: 13, color: 'var(--muted-foreground)', marginBottom: 12 }}>
-          Question {index + 1}/{shuffled.length}
+          Question {index + 1}/{questions.length} · {myAnswer !== null ? '✅ Tu as répondu' : '❓ Ta réponse ?'}
         </p>
         <p className="game-question" style={{ textAlign: 'center', marginBottom: 20 }}>{q.q}</p>
         <div style={{ display: 'flex', gap: 12 }}>
@@ -562,21 +584,27 @@ function CultureGame() {
               <button key={label} className="btn btn-full btn-lg"
                 style={{
                   flex: 1,
-                  background: answer === null ? 'var(--secondary)' :
-                    val === q.answer ? '#34d399' :
-                    val === answer ? '#ef4444' : 'var(--secondary)',
-                  color: answer !== null && (val === q.answer || val === answer) ? 'white' : 'var(--foreground)',
+                  background: myAnswer === null ? 'var(--secondary)' :
+                    showResult && val === q.answer ? '#34d399' :
+                    myAnswer === val && !isCorrect ? '#ef4444' :
+                    myAnswer === val ? 'var(--primary)' : 'var(--secondary)',
+                  color: myAnswer !== null && (val === q.answer || val === myAnswer) ? 'white' : 'var(--foreground)',
                 }}
-                onClick={() => answer === null && handleAnswer(val)}
-                disabled={answer !== null}>
+                onClick={() => myAnswer === null && handleAnswer(val)}
+                disabled={myAnswer !== null}>
                 {label}
               </button>
             )
           })}
         </div>
-        {answer !== null && (
+        {showResult && partnerAnswer !== null && (
+          <p style={{ textAlign: 'center', fontSize: 13, color: 'var(--muted-foreground)', marginTop: 12 }}>
+            {partnerKey?.replace('answer_', '')} a répondu : {partnerAnswer ? 'Vrai' : 'Faux'} · {partnerAnswer === q.answer ? '✅' : '❌'}
+          </p>
+        )}
+        {myAnswer !== null && (
           <button className="btn btn-primary btn-full" style={{ marginTop: 16 }} onClick={next}>
-            {index < shuffled.length - 1 ? 'Suivante' : 'Voir mon score'}
+            {index < questions.length - 1 ? 'Suivante' : 'Terminer'}
           </button>
         )}
       </div>
@@ -585,23 +613,25 @@ function CultureGame() {
 }
 
 function RoueGame() {
-  const { room, username } = useRoom()
-  const [choices, setChoices] = useState(['Film', 'Resto', 'Balade', 'Jeu', 'Série', 'Cuisine'])
+  const { room, username, updateGameState } = useRoom()
+  const gs = room?.active_game?.state || {}
+
+  const choices = gs.choices || ['Film', 'Resto', 'Balade', 'Jeu', 'Série', 'Cuisine']
+  const result = gs.result || null
+  const spinning = gs.spinning || false
   const [input, setInput] = useState('')
-  const [result, setResult] = useState(null)
-  const [spinning, setSpinning] = useState(false)
   const [rotation, setRotation] = useState(0)
   const notifiedRef = useRef(false)
 
   function addChoice() {
     if (!input.trim() || choices.length >= 8) return
-    setChoices(prev => [...prev, input.trim()])
+    updateGameState({ state: { ...gs, choices: [...choices, input.trim()], result: null } })
     setInput('')
   }
 
   function removeChoice(i) {
     if (choices.length <= 2) return
-    setChoices(prev => prev.filter((_, idx) => idx !== i))
+    updateGameState({ state: { ...gs, choices: choices.filter((_, idx) => idx !== i), result: null } })
   }
 
   function spin() {
@@ -610,14 +640,12 @@ function RoueGame() {
       notify(room.id, 'game', 'a lancé la Roue de la Chance 🎡', username)
       notifiedRef.current = true
     }
-    setSpinning(true)
-    setResult(null)
+    updateGameState({ state: { ...gs, spinning: true, result: null } })
     const newRotation = rotation + 1440 + Math.random() * 720
     setRotation(newRotation)
     const selected = choices[Math.floor(Math.random() * choices.length)]
     setTimeout(() => {
-      setResult(selected)
-      setSpinning(false)
+      updateGameState({ state: { ...gs, spinning: false, result: selected, choices } })
     }, 3000)
   }
 
@@ -626,19 +654,15 @@ function RoueGame() {
       <div className="game-card-wrapper">
         <div className="game-card revealed" style={{ cursor: 'default', maxWidth: 440, flexDirection: 'column' }}>
           <div style={{ position: 'relative', width: 200, height: 200, margin: '0 auto 16px' }}>
-            <svg viewBox="0 0 200 200" style={{ width: '100%', height: '100%', transform: `rotate(${rotation}deg)`, transition: spinning ? 'transform 3s cubic-bezier(0.17, 0.67, 0.12, 0.99)' : 'none' }}>
+            <svg viewBox="0 0 200 200" style={{ width: '100%', height: '100%', transform: `rotate(${spinning ? rotation : rotation}deg)`, transition: spinning ? 'transform 3s cubic-bezier(0.17, 0.67, 0.12, 0.99)' : 'none' }}>
               {choices.map((_, i) => {
                 const angle = (i * 360) / choices.length
                 const rad = (angle * Math.PI) / 180
                 const nextRad = ((angle + 360 / choices.length) * Math.PI) / 180
                 return (
-                  <path
-                    key={i}
+                  <path key={i}
                     d={`M100,100 L${100 + 90 * Math.cos(rad)},${100 + 90 * Math.sin(rad)} A90,90 0 0,1 ${100 + 90 * Math.cos(nextRad)},${100 + 90 * Math.sin(nextRad)} Z`}
-                    fill={ROULETTE_COLORS[i % ROULETTE_COLORS.length]}
-                    stroke="white"
-                    strokeWidth="1"
-                  />
+                    fill={ROULETTE_COLORS[i % ROULETTE_COLORS.length]} stroke="white" strokeWidth="1" />
                 )
               })}
             </svg>
@@ -713,9 +737,7 @@ function MorpionGame() {
         }
       })
       .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          loadGame()
-        }
+        if (status === 'SUBSCRIBED') loadGame()
       })
     return () => supabase.removeChannel(sub)
   }, [room?.id])
@@ -743,17 +765,11 @@ function MorpionGame() {
     const currentGameId = gameIdRef.current
     if (currentGameId) {
       await supabase.from('game_morpion').update({
-        board: newBoard,
-        x_is_next: newXIsNext,
-        scores: newScores,
-        updated_at: new Date().toISOString(),
+        board: newBoard, x_is_next: newXIsNext, scores: newScores, updated_at: new Date().toISOString(),
       }).eq('id', currentGameId)
     } else {
       const { data } = await supabase.from('game_morpion').insert({
-        room_id: room.id,
-        board: newBoard,
-        x_is_next: newXIsNext,
-        scores: newScores,
+        room_id: room.id, board: newBoard, x_is_next: newXIsNext, scores: newScores,
       }).select().single()
       if (data) { gameIdRef.current = data.id; setGameId(data.id) }
     }
@@ -770,9 +786,7 @@ function MorpionGame() {
     const newXIsNext = !xIsNext
     const w = calculateMorpionWinner(newBoard)
     let newScores = { ...scores }
-    if (w && w !== 'draw') {
-      newScores = { ...scores, [w]: scores[w] + 1 }
-    }
+    if (w && w !== 'draw') newScores = { ...scores, [w]: scores[w] + 1 }
     setBoard(newBoard)
     setXIsNext(newXIsNext)
     if (w) setWinner(w)
@@ -817,21 +831,41 @@ function MorpionGame() {
 }
 
 function WouldYouRather() {
-  const { room, username } = useRoom()
-  const [question, setQuestion] = useState(null)
-  const [choice, setChoice] = useState(null)
+  const { room, username, updateGameState } = useRoom()
+  const gs = room?.active_game?.state || {}
   const notifiedRef = useRef(false)
+
+  const questionIndex = gs.questionIndex ?? null
+  const myChoice = gs[`choice_${username}`] || null
+  const partnerKey = Object.keys(gs).find(k => k.startsWith('choice_') && k !== `choice_${username}`)
+  const partnerChoice = partnerKey ? gs[partnerKey] : null
+  const revealed = gs.revealed || false
+
+  const bothChose = myChoice !== null && partnerChoice !== null
 
   function start() {
     if (!notifiedRef.current && room) {
       notify(room.id, 'game', 'a lancé Tu Préfères ⚡', username)
       notifiedRef.current = true
     }
-    setQuestion(Math.floor(Math.random() * WYR_QUESTIONS.length))
-    setChoice(null)
+    let idx
+    do {
+      idx = Math.floor(Math.random() * WYR_QUESTIONS.length)
+    } while (idx === questionIndex && WYR_QUESTIONS.length > 1)
+    const clean = {}
+    Object.keys(gs).forEach(k => { if (!k.startsWith('choice_') && k !== 'revealed') clean[k] = gs[k] })
+    updateGameState({ state: { ...clean, questionIndex: idx, revealed: false } })
   }
 
-  if (question === null) {
+  function choose(val) {
+    updateGameState({ state: { ...gs, [`choice_${username}`]: val } })
+  }
+
+  function showReveal() {
+    updateGameState({ state: { ...gs, revealed: true } })
+  }
+
+  if (questionIndex === null) {
     return (
       <div className="game-card-wrapper">
         <div className="game-card idle" onClick={start}>
@@ -843,7 +877,7 @@ function WouldYouRather() {
     )
   }
 
-  const q = WYR_QUESTIONS[question]
+  const q = WYR_QUESTIONS[questionIndex]
 
   return (
     <>
@@ -851,32 +885,46 @@ function WouldYouRather() {
         <div className="game-card revealed" style={{ cursor: 'default', maxWidth: 440, flexDirection: 'column' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%' }}>
             <button
-              className={`btn btn-full btn-lg`}
+              className="btn btn-full btn-lg"
               style={{
                 textAlign: 'center', height: 'auto', padding: '16px 20px',
-                background: choice === 'a' ? 'var(--primary)' : 'var(--secondary)',
-                color: choice === 'a' ? 'var(--primary-foreground)' : 'var(--foreground)',
-                border: choice === 'a' ? '2px solid var(--primary)' : '2px solid var(--input)',
+                background: revealed && myChoice === 'a' ? (partnerChoice === 'a' ? '#34d399' : 'var(--primary)') :
+                  myChoice === 'a' ? 'var(--primary)' : 'var(--secondary)',
+                color: (myChoice === 'a' || (revealed && partnerChoice === 'a')) ? 'var(--primary-foreground)' : 'var(--foreground)',
+                border: myChoice === 'a' ? '2px solid var(--primary)' : '2px solid var(--input)',
+                opacity: revealed && myChoice !== 'a' && partnerChoice !== 'a' ? 0.5 : 1,
               }}
-              onClick={() => setChoice('a')}>
+              onClick={() => !myChoice && choose('a')}>
               {q.a}
             </button>
             <p style={{ textAlign: 'center', fontSize: 13, fontWeight: 600, color: 'var(--muted-foreground)' }}>OU</p>
             <button
-              className={`btn btn-full btn-lg`}
+              className="btn btn-full btn-lg"
               style={{
                 textAlign: 'center', height: 'auto', padding: '16px 20px',
-                background: choice === 'b' ? 'var(--accent)' : 'var(--secondary)',
-                color: choice === 'b' ? 'var(--primary-foreground)' : 'var(--foreground)',
-                border: choice === 'b' ? '2px solid var(--accent)' : '2px solid var(--input)',
+                background: revealed && myChoice === 'b' ? (partnerChoice === 'b' ? '#34d399' : 'var(--accent)') :
+                  myChoice === 'b' ? 'var(--accent)' : 'var(--secondary)',
+                color: (myChoice === 'b' || (revealed && partnerChoice === 'b')) ? 'var(--primary-foreground)' : 'var(--foreground)',
+                border: myChoice === 'b' ? '2px solid var(--accent)' : '2px solid var(--input)',
+                opacity: revealed && myChoice !== 'b' && partnerChoice !== 'b' ? 0.5 : 1,
               }}
-              onClick={() => setChoice('b')}>
+              onClick={() => !myChoice && choose('b')}>
               {q.b}
             </button>
           </div>
-          {choice && (
+          {myChoice && !revealed && !bothChose && (
             <p style={{ textAlign: 'center', fontSize: 14, color: 'var(--muted-foreground)', marginTop: 12 }}>
-              Discutez-en ensemble ! 👀
+              ⏳ En attente de {partnerKey?.replace('choice_', '') || 'ton partenaire'}...
+            </p>
+          )}
+          {bothChose && !revealed && (
+            <button className="btn btn-primary btn-full" style={{ marginTop: 12 }} onClick={showReveal}>
+              Voir les choix 🎭
+            </button>
+          )}
+          {revealed && (
+            <p style={{ textAlign: 'center', fontSize: 14, color: 'var(--muted-foreground)', marginTop: 12 }}>
+              {myChoice === partnerChoice ? 'Vous avez choisi la même chose ! 💕' : 'Vous êtes en désaccord ! 😱'}
             </p>
           )}
         </div>
@@ -908,14 +956,14 @@ export default function Games() {
   const [active, setActive] = useState(urlGame || null)
 
   useEffect(() => {
-    if (urlGame && !active) setActive(urlGame)
+    if (urlGame && urlGame !== active) setActive(urlGame)
   }, [urlGame])
 
   function openGame(key) {
     setActive(key)
     setSearchParams({ game: key })
     const game = GAMES_LIST.find(g => g.key === key)
-    updateRoom({ active_game: { game: key, by: username, label: game?.label } })
+    updateRoom({ active_game: { game: key, by: username, label: game?.label, state: {} } })
   }
 
   function closeGame() {

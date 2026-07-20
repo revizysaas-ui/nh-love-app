@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Gamepad2, Heart, Sparkles, Shuffle, RotateCcw, AlertCircle, HelpCircle, MessageCircle, Target, BookOpen, Camera, Send, CheckCircle2, XCircle, UserCheck, Cherry, Grid3X3, ArrowLeft } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useRoom } from '../context/RoomContext'
@@ -902,16 +903,24 @@ const GAME_COMPONENTS = {
 
 export default function Games() {
   const { room, username, updateRoom } = useRoom()
-  const [active, setActive] = useState(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const urlGame = searchParams.get('game')
+  const [active, setActive] = useState(urlGame || null)
+
+  useEffect(() => {
+    if (urlGame && !active) setActive(urlGame)
+  }, [urlGame])
 
   function openGame(key) {
     setActive(key)
+    setSearchParams({ game: key })
     const game = GAMES_LIST.find(g => g.key === key)
     updateRoom({ active_game: { game: key, by: username, label: game?.label } })
   }
 
   function closeGame() {
     setActive(null)
+    setSearchParams({})
     if (room?.active_game?.by === username) {
       updateRoom({ active_game: null })
     }
@@ -920,6 +929,7 @@ export default function Games() {
   useEffect(() => {
     if (active === null && room?.active_game && room.active_game.by !== username) {
       setActive(room.active_game.game)
+      setSearchParams({ game: room.active_game.game })
     }
   }, [room?.active_game])
 

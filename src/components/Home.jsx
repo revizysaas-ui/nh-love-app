@@ -1,20 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Heart, Calendar, MapPin, MessageCircle, Image, PenLine, Gamepad2, Sparkles, MessageCircleQuestion, LayoutDashboard, BarChart3, Gift, Hash, Music, Target, HelpCircle, Cherry, Grid3X3, BookOpen, Zap } from 'lucide-react'
+import { Heart, Calendar, MapPin, MessageCircle, Image, PenLine, Gamepad2, Sparkles, MessageCircleQuestion, LayoutDashboard, BarChart3, Gift, Hash, Music } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useRoom } from '../context/RoomContext'
 import { getDailyQuestion } from '../data/daily-questions'
-
-const GAMES = [
-  { key: 'truthdare', icon: Heart, label: 'Vérité ou Action', color: '#e74c8b' },
-  { key: 'quiz', icon: HelpCircle, label: 'Quiz Amour', color: '#8a79ab' },
-  { key: 'defis', icon: Target, label: 'Défis', color: '#e74c3c' },
-  { key: 'culture', icon: BookOpen, label: 'Culture G', color: '#4a90d9' },
-  { key: 'roue', icon: Cherry, label: 'Roue', color: '#34d399' },
-  { key: 'morpion', icon: Grid3X3, label: 'Morpion', color: '#22d3ee' },
-  { key: 'preferes', icon: Zap, label: 'Tu Préfères', color: '#f97316' },
-]
-
-const quickGames = GAMES.slice(0, 4)
 
 export default function Home() {
   const navigate = useNavigate()
@@ -22,7 +10,6 @@ export default function Home() {
   const [days, setDays] = useState(0)
   const [untilDays, setUntilDays] = useState(0)
   const [dailyQ, setDailyQ] = useState('')
-  const [activeGame, setActiveGame] = useState(null)
 
   useEffect(() => {
     if (!room) return
@@ -80,7 +67,7 @@ export default function Home() {
       </div>
 
       {partnerGame && (
-        <div className="active-game-banner" onClick={() => navigate('/jeux')}>
+        <div className="active-game-banner" onClick={() => navigate(`/jeux?game=${partnerGame.game}`)}>
           <Gamepad2 size={18} />
           <span><strong>{partnerGame.by}</strong> joue à <strong>{partnerGame.label}</strong></span>
           <span className="active-game-join">Rejoindre →</span>
@@ -96,24 +83,6 @@ export default function Home() {
           <p className="daily-q-text">{dailyQ}</p>
         </div>
       )}
-
-      <div className="home-section">
-        <div className="home-section-header">
-          <Gamepad2 size={18} />
-          <span>Nos Jeux</span>
-          <button className="home-see-all" onClick={() => navigate('/jeux')}>Voir tout</button>
-        </div>
-        <div className="home-games-grid">
-          {quickGames.map(g => (
-            <button key={g.key} className="home-game-btn" style={{ '--gc': g.color }} onClick={() => navigate('/jeux')}>
-              <div className="home-game-icon" style={{ background: `${g.color}18`, color: g.color }}>
-                <g.icon size={20} />
-              </div>
-              <span>{g.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
 
       <div className="home-section">
         <div className="home-section-header">

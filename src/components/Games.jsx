@@ -54,6 +54,9 @@ function TruthOrDare() {
   const cardDifficulty = gs.difficulty || 'soft'
   const revealed = gs.revealed || false
   const picker = gs.picker || null
+  const isMyTurn = picker === username
+  const gameCreator = room?.active_game?.by
+  const iAmCreator = gameCreator === username
 
   useEffect(() => { loadQuestions() }, [])
 
@@ -72,8 +75,7 @@ function TruthOrDare() {
     let pool = filtered.length > 0 ? filtered : questions.filter(q => q.type === cardType && q.difficulty === cardDifficulty)
     if (pool.length === 0) return
     const p = pool[Math.floor(Math.random() * pool.length)]
-    const newUsed = [...usedIds, p.id]
-    setUsedIds(newUsed)
+    setUsedIds(prev => [...prev, p.id])
     updateGameState({ state: { currentCard: p, type: cardType, difficulty: cardDifficulty, revealed: false, picker: username } })
   }
 
@@ -85,59 +87,74 @@ function TruthOrDare() {
 
   return (
     <>
-      <div className="game-controls">
-        <div className="toggle-group">
-          {['truth', 'dare'].map(t => (
-            <button key={t} className={`toggle-btn ${cardType === t ? 'active' : ''}`} onClick={() => updateGameState({ state: { ...gs, type: t, currentCard: null, revealed: false } })}>
-              {t === 'truth' ? <AlertCircle size={16} /> : <Sparkles size={16} />}
-              {t === 'truth' ? 'Vérité' : 'Action'}
-            </button>
-          ))}
+      {iAmCreator && (
+        <div className="game-controls">
+          <div className="toggle-group">
+            {['truth', 'dare'].map(t => (
+              <button key={t} className={`toggle-btn ${cardType === t ? 'active' : ''}`} onClick={() => updateGameState({ state: { ...gs, type: t, currentCard: null, revealed: false } })}>
+                {t === 'truth' ? <AlertCircle size={16} /> : <Sparkles size={16} />}
+                {t === 'truth' ? 'Vérité' : 'Action'}
+              </button>
+            ))}
+          </div>
+          <div className="difficulty-group">
+            {DIFFICULTIES.map(d => (
+              <button key={d.key} className={`diff-btn ${cardDifficulty === d.key ? 'active' : ''}`}
+                style={{ borderColor: cardDifficulty === d.key ? d.color : 'transparent', background: cardDifficulty === d.key ? `${d.color}15` : '' }}
+                onClick={() => updateGameState({ state: { ...gs, difficulty: d.key, currentCard: null, revealed: false } })}>
+                <span>{d.emoji}</span><span>{d.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="difficulty-group">
-          {DIFFICULTIES.map(d => (
-            <button key={d.key} className={`diff-btn ${cardDifficulty === d.key ? 'active' : ''}`}
-              style={{ borderColor: cardDifficulty === d.key ? d.color : 'transparent', background: cardDifficulty === d.key ? `${d.color}15` : '' }}
-              onClick={() => updateGameState({ state: { ...gs, difficulty: d.key, currentCard: null, revealed: false } })}>
-              <span>{d.emoji}</span><span>{d.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
+      )}
+
+      {!iAmCreator && currentCard && (
+        <p style={{ textAlign: 'center', fontSize: 14, color: 'var(--muted-foreground)', marginBottom: 12 }}>
+          {picker} tire les cartes — tu réagis !
+        </p>
+      )}
 
       <div className="game-card-wrapper">
         {loading ? <div className="loading-screen"><div className="spinner" /></div>
         : currentCard ? (
-          <div className={`game-card ${revealed ? 'revealed' : ''}`} onClick={!revealed ? reveal : undefined}>
-            {!revealed ? (
-              <div className="game-card-front">
+          <div className="flip-card">
+            <div className={`flip-card-inner ${revealed ? 'flipped' : ''}`}>
+              <div className="flip-card-face flip-card-front">
                 <Heart size={40} />
-                <p>{picker === username ? 'Clique pour révéler' : `${picker} a tiré une carte...`}</p>
-                <small>{cardType === 'truth' ? 'Vérité' : 'Action'} · {diff?.label}</small>
+                <p style={{ marginTop: 12, fontSize: 16 }}>
+                  {isMyTurn ? 'Clique pour révéler' : `${picker} a tiré une carte...`}
+                </p>
+                <small style={{ fontSize: 13, opacity: 0.8, marginTop: 8 }}>
+                  {cardType === 'truth' ? 'Vérité' : 'Action'} · {diff?.label}
+                </small>
               </div>
-            ) : (
-              <div className="game-card-back">
+              <div className="flip-card-face flip-card-back">
                 <div className="game-badge" style={{ background: diff?.color }}>
                   {diff?.emoji} {cardType === 'truth' ? 'Vérité' : 'Action'}
                 </div>
-                <p className="game-question">{currentCard.question}</p>
+                <p>{currentCard.question}</p>
               </div>
-            )}
+            </div>
           </div>
         ) : (
           <div className="game-card idle">
             <Heart size={48} />
-            <p>Prêt à jouer ?</p>
-            <span>Choisis le niveau et lance-toi</span>
+            <p>{iAmCreator ? 'Prêt à jouer ?' : 'En attente du créateur...'}</p>
+            <span>{iAmCreator ? 'Choisis le niveau et lance-toi' : 'Le créateur lancera une carte'}</span>
           </div>
         )}
       </div>
 
       <div className="game-actions">
-        <button className="btn btn-primary btn-lg" onClick={pick}>
-          <Shuffle size={20} />
-          {currentCard ? 'Suivant' : 'Commencer'}
-        </button>
+        {isMyTurn ? (
+          <button className="btn btn-primary btn-lg" onClick={!revealed ? reveal : pick}>
+            <Shuffle size={20} />
+            {revealed ? 'Suivant' : 'Révéler'}
+          </button>
+        ) : (
+          !currentCard && <p style={{ color: 'var(--muted-foreground)', fontSize: 14 }}>Attends que {gameCreator} lance une carte</p>
+        )}
       </div>
     </>
   )
@@ -719,6 +736,7 @@ function MorpionGame() {
   const [gameId, setGameId] = useState(null)
   const notifiedRef = useRef(false)
   const gameIdRef = useRef(null)
+  const [players, setPlayers] = useState({ x: null, o: null })
 
   useEffect(() => { gameIdRef.current = gameId }, [gameId])
 
@@ -734,6 +752,7 @@ function MorpionGame() {
           setXIsNext(payload.new.x_is_next)
           setScores(payload.new.scores || { '💕': 0, '❤️': 0 })
           setWinner(calculateMorpionWinner(newBoard))
+          if (payload.new.players) setPlayers(payload.new.players)
         }
       })
       .subscribe((status) => {
@@ -758,70 +777,91 @@ function MorpionGame() {
       setScores(data.scores || { '💕': 0, '❤️': 0 })
       setGameId(data.id)
       setWinner(calculateMorpionWinner(b))
+      if (data.players) setPlayers(data.players)
     }
   }
 
-  async function syncGame(newBoard, newXIsNext, newScores) {
+  async function syncGame(newBoard, newXIsNext, newScores, newPlayers) {
     const currentGameId = gameIdRef.current
+    const payload = { board: newBoard, x_is_next: newXIsNext, scores: newScores, updated_at: new Date().toISOString() }
+    if (newPlayers) payload.players = newPlayers
     if (currentGameId) {
-      await supabase.from('game_morpion').update({
-        board: newBoard, x_is_next: newXIsNext, scores: newScores, updated_at: new Date().toISOString(),
-      }).eq('id', currentGameId)
+      await supabase.from('game_morpion').update(payload).eq('id', currentGameId)
     } else {
       const { data } = await supabase.from('game_morpion').insert({
-        room_id: room.id, board: newBoard, x_is_next: newXIsNext, scores: newScores,
+        room_id: room.id, ...payload,
       }).select().single()
       if (data) { gameIdRef.current = data.id; setGameId(data.id) }
     }
   }
 
+  function assignSymbol() {
+    if (players.x && players.o) return players
+    const newPlayers = { ...players }
+    if (!newPlayers.x) newPlayers.x = username
+    else if (!newPlayers.o && newPlayers.x !== username) newPlayers.o = username
+    return newPlayers
+  }
+
+  const mySymbol = players.x === username ? '💕' : players.o === username ? '❤️' : null
+  const isMyTurn = mySymbol && ((mySymbol === '💕' && xIsNext) || (mySymbol === '❤️' && !xIsNext))
+
   function handleClick(i) {
-    if (board[i] || winner) return
+    if (board[i] || winner || !isMyTurn) return
     if (!notifiedRef.current && room) {
       notify(room.id, 'game', 'a lancé le Morpion ❌⭕', username)
       notifiedRef.current = true
     }
+    const newPlayers = assignSymbol()
+    setPlayers(newPlayers)
     const newBoard = [...board]
-    newBoard[i] = xIsNext ? '💕' : '❤️'
+    newBoard[i] = mySymbol
     const newXIsNext = !xIsNext
     const w = calculateMorpionWinner(newBoard)
     let newScores = { ...scores }
-    if (w && w !== 'draw') newScores = { ...scores, [w]: scores[w] + 1 }
+    if (w && w !== 'draw') newScores = { ...scores, [mySymbol]: scores[mySymbol] + 1 }
     setBoard(newBoard)
     setXIsNext(newXIsNext)
     if (w) setWinner(w)
     setScores(newScores)
-    syncGame(newBoard, newXIsNext, newScores)
+    syncGame(newBoard, newXIsNext, newScores, newPlayers)
   }
 
   async function reset() {
     const fresh = Array(9).fill(null)
+    const newPlayers = players
     setBoard(fresh)
     setXIsNext(true)
     setWinner(null)
-    syncGame(fresh, true, scores)
+    syncGame(fresh, true, scores, newPlayers)
   }
 
   const w = calculateMorpionWinner(board)
-  const status = w === 'draw' ? 'Match nul !' : w ? `${w} a gagné !` : `Tour de ${xIsNext ? '💕' : '❤️'}`
+  const status = w === 'draw' ? 'Match nul !' : w ? `${w} a gagné !` : !mySymbol ? 'Choisis ton camp' : isMyTurn ? 'Ton tour !' : 'Tour du partenaire...'
 
   return (
     <>
+      {!mySymbol && !w && (
+        <p style={{ textAlign: 'center', fontSize: 14, color: 'var(--muted-foreground)', marginBottom: 12 }}>
+          Joue pour t&apos;attribuer un symbole automatiquement
+        </p>
+      )}
       <div className="game-card-wrapper">
         <div className="game-card revealed" style={{ cursor: 'default', flexDirection: 'column', maxWidth: 320 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', marginBottom: 12, fontSize: 14, color: 'var(--muted-foreground)' }}>
             <span>💕: {scores['💕']}</span>
-            <span style={{ fontWeight: 700, color: w ? 'var(--primary)' : 'var(--foreground)' }}>{status}</span>
+            <span style={{ fontWeight: 700, color: w ? 'var(--primary)' : isMyTurn ? '#34d399' : 'var(--foreground)' }}>{status}</span>
             <span>❤️: {scores['❤️']}</span>
           </div>
           <div className="morpion-board">
             {board.map((cell, i) => (
-              <button key={i} className={`morpion-cell ${cell ? 'taken' : ''}`} onClick={() => handleClick(i)}>
+              <button key={i} className={`morpion-cell ${cell ? 'taken' : ''} ${!isMyTurn && !cell && !w ? 'disabled' : ''}`}
+                onClick={() => handleClick(i)} disabled={!isMyTurn && !w}>
                 {cell && <span style={{ fontSize: 28 }}>{cell}</span>}
               </button>
             ))}
           </div>
-          {(winner || board.every(s => s)) && (
+          {(w || board.every(s => s)) && (
             <button className="btn btn-sm" style={{ marginTop: 12 }} onClick={reset}><RotateCcw size={14} /> Rejouer</button>
           )}
         </div>

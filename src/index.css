@@ -931,6 +931,37 @@ body {
 .game-question { font-size: 19px; font-weight: 600; line-height: 1.5; color: var(--foreground); }
 .game-actions { display: flex; justify-content: center; gap: 12px; margin-top: 20px; flex-wrap: wrap; }
 
+/* 3D Flip Card */
+.flip-card { perspective: 800px; width: 100%; max-width: 400px; min-height: 180px; }
+.flip-card-inner {
+  position: relative; width: 100%; min-height: 180px;
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-style: preserve-3d;
+}
+.flip-card-inner.flipped { transform: rotateY(180deg); }
+.flip-card-face {
+  position: absolute; inset: 0; backface-visibility: hidden;
+  border-radius: calc(var(--radius) * 1.5);
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; text-align: center; padding: 28px 20px;
+}
+.flip-card-front {
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: var(--primary-foreground);
+}
+.flip-card-back {
+  transform: rotateY(180deg);
+  background: var(--card); border: 2px solid var(--primary);
+  box-shadow: 0 2px 12px rgba(138, 121, 171, 0.15);
+}
+.flip-card-back p { font-size: 19px; font-weight: 600; line-height: 1.5; color: var(--foreground); }
+
+/* Disabled / spectator */
+.game-spectator {
+  opacity: 0.6; pointer-events: none; user-select: none;
+}
+.morpion-cell.disabled { opacity: 0.4; cursor: not-allowed; }
+
 /* ========== REACTIONS ========== */
 .btn-icon:disabled { opacity: 0.35; cursor: not-allowed; }
 .msg-reactions { display: flex; gap: 4px; margin-top: 6px; }

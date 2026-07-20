@@ -6,7 +6,8 @@ CREATE TABLE IF NOT EXISTS game_morpion (
   x_is_next BOOLEAN DEFAULT true,
   scores JSONB DEFAULT '{"💕":0,"❤️":0}'::jsonb,
   created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  players JSONB DEFAULT '{"x":null,"o":null}'::jsonb
 );
 ALTER TABLE game_morpion ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Public game_morpion" ON game_morpion;

@@ -1,15 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Music, Plus, Trash2, Play, Pause, Video, Shuffle, Repeat, Repeat1 } from 'lucide-react'
+import { Music, Plus, Trash2, Play, Pause, Video, Shuffle, Repeat, Repeat1, SkipBack, SkipForward } from 'lucide-react'
 import ReactPlayer from 'react-player'
 import { supabase } from '../lib/supabase'
 import { useRoom } from '../context/RoomContext'
 
 function isVideoFile(url) {
   return /\.(mp4|webm|mov|avi)(\?|$)/i.test(url)
-}
-
-function isAudioFile(url) {
-  return /\.(mp3|wav|ogg|flac|aac|m4a)(\?|$)/i.test(url)
 }
 
 function getSongType(url) {
@@ -28,7 +24,9 @@ export default function Playlist() {
   const [playing, setPlaying] = useState(false)
   const [shuffle, setShuffle] = useState(false)
   const [repeatMode, setRepeatMode] = useState('none')
-  const playerRef = useRef(null)
+  const [playerKey, setPlayerKey] = useState(0)
+  const audioRef = useRef(null)
+  const videoRef = useRef(null)
 
   const currentSong = currentIdx >= 0 ? songs[currentIdx] : null
   const currentType = currentSong ? getSongType(currentSong.url) : null
@@ -75,73 +73,113 @@ export default function Playlist() {
     return next
   }, [songs.length, shuffle, repeatMode])
 
-  const playSong = useCallback((idx) => {
-    if (idx === currentIdx) {
-      setPlaying(p => !p)
-    } else {
-      setCurrentIdx(idx)
-      setPlaying(true)
-    }
-  }, [currentIdx])
-
-  const handleEnded = useCallback(() => {
+  const goNext = useCallback(() => {
     const next = getNextIdx(currentIdx)
-    if (next === -1) {
-      setPlaying(false)
-      return
-    }
+    if (next === -1) { setPlaying(false); return }
     setCurrentIdx(next)
     setPlaying(true)
+    setPlayerKey(k => k + 1)
   }, [currentIdx, getNextIdx])
 
-  const handleNext = useCallback(() => {
-    const next = getNextIdx(currentIdx)
-    if (next === -1) return
-    setCurrentIdx(next)
-    setPlaying(true)
-  }, [currentIdx, getNextIdx])
-
-  const handlePrev = useCallback(() => {
+  const goPrev = useCallback(() => {
     if (songs.length === 0) return
     const prev = currentIdx <= 0 ? songs.length - 1 : currentIdx - 1
     setCurrentIdx(prev)
     setPlaying(true)
+    setPlayerKey(k => k + 1)
   }, [currentIdx, songs.length])
+
+  const playSong = useCallback((idx) => {
+    if (idx === currentIdx) {
+      setPlaying(p => !p)
+      return
+    }
+    setCurrentIdx(idx)
+    setPlaying(true)
+    setPlayerKey(k => k + 1)
+  }, [currentIdx])
+
+  useEffect(() => {
+    const el = currentType === 'audio' ? audioRef.current : currentType === 'video' ? videoRef.current : null
+    if (!el) return
+    if (playing) el.play().catch(() => {})
+    else el.pause()
+  }, [playing, currentIdx, currentType])
 
   function renderPlayer() {
     if (!currentSong) return null
 
-    const isYoutube = currentType === 'youtube'
-    const isSpotify = currentType === 'spotify'
-    const isVideo = currentType === 'video'
-    const isAudio = currentType === 'audio'
-
     return (
-      <div className={`playlist-player ${isVideo || isYoutube ? 'playlist-player-video' : ''}`}>
+      <div className={`playlist-player ${currentType === 'youtube' || currentType === 'video' ? 'playlist-player-video' : ''}`}>
         <span className="player-title">{currentSong.title}</span>
-        <div className={isVideo || isYoutube ? 'video-wrapper' : ''}>
+
+        {currentType === 'youtube' && (
+          <div className="video-wrapper">
+            <ReactPlayer
+              key={playerKey}
+              url={currentSong.url}
+              playing={playing}
+              onEnded={goNext}
+              onPlay={() => setPlaying(true)}
+              onPause={() => setPlaying(false)}
+              width="100%"
+              height="100%"
+              style={{ position: 'absolute', top: 0, left: 0 }}
+              config={{ youtube: { playerVars: { modestbranding: 1, rel: 0, iv_load_policy: 3, fs: 0, autoplay: 1 } } }}
+            />
+          </div>
+        )}
+
+        {currentType === 'spotify' && (
           <ReactPlayer
-            ref={playerRef}
+            key={playerKey}
             url={currentSong.url}
             playing={playing}
-            onEnded={handleEnded}
+            onEnded={goNext}
             onPlay={() => setPlaying(true)}
             onPause={() => setPlaying(false)}
             width="100%"
-            height={isVideo || isYoutube ? '100%' : undefined}
-            style={isVideo || isYoutube ? { position: 'absolute', top: 0, left: 0 } : {}}
-            config={{
-              youtube: { playerVars: { modestbranding: 1, rel: 0, iv_load_policy: 3, fs: 0 } },
-              spotify: { width: '100%', height: '80' },
-            }}
+            height="80"
+            config={{ spotify: { width: '100%', height: '80' } }}
           />
-        </div>
+        )}
+
+        {currentType === 'video' && (
+          <div className="video-wrapper">
+            <video
+              ref={videoRef}
+              key={playerKey}
+              src={currentSong.url}
+              controls
+              playsInline
+              onEnded={goNext}
+              onPause={() => setPlaying(false)}
+              onPlay={() => setPlaying(true)}
+            />
+          </div>
+        )}
+
+        {currentType === 'audio' && (
+          <div className="playlist-audio-player">
+            <audio
+              ref={audioRef}
+              key={playerKey}
+              src={currentSong.url}
+              controls
+              onEnded={goNext}
+              onPause={() => setPlaying(false)}
+              onPlay={() => setPlaying(true)}
+              style={{ width: '100%' }}
+            />
+          </div>
+        )}
+
         <div className="player-controls">
-          <button className="btn-icon" onClick={handlePrev}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></svg></button>
+          <button className="btn-icon" onClick={goPrev}><SkipBack size={18} /></button>
           <button className="btn-icon player-play-btn" onClick={() => setPlaying(p => !p)}>
             {playing ? <Pause size={20} /> : <Play size={20} />}
           </button>
-          <button className="btn-icon" onClick={handleNext}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg></button>
+          <button className="btn-icon" onClick={goNext}><SkipForward size={18} /></button>
         </div>
       </div>
     )

@@ -1017,39 +1017,20 @@ body {
 .playlist-body { flex: 1; display: flex; flex-direction: column; gap: 2px; }
 .playlist-body span { font-size: 15px; color: var(--foreground); }
 .playlist-body small { font-size: 12px; color: var(--muted-foreground); }
-.playlist-item { cursor: pointer; -webkit-touch-callout: none; user-select: none; }
+.playlist-item { cursor: pointer; }
 .playlist-item-active { border-color: var(--ring); background: rgba(138, 121, 171, 0.06); }
 .playlist-play-icon { color: var(--muted-foreground); flex-shrink: 0; transition: color 0.2s; }
 .playlist-item:hover .playlist-play-icon { color: var(--ring); }
-.playlist-idx { font-size: 12px; color: var(--muted-foreground); min-width: 18px; text-align: center; }
-.playlist-modes { display: flex; gap: 8px; margin-bottom: 12px; }
-.playlist-mode-btn {
-  display: flex; align-items: center; gap: 5px; padding: 6px 12px;
-  border: 1px solid var(--border); border-radius: 999px;
-  background: var(--card); color: var(--muted-foreground);
-  font-size: 12px; font-family: inherit; cursor: pointer; transition: all 0.2s;
-}
-.playlist-mode-btn:hover { border-color: var(--ring); color: var(--foreground); }
-.playlist-mode-btn.active { background: var(--ring); color: #fff; border-color: var(--ring); }
 .playlist-player {
   margin-bottom: 16px; padding: 14px;
   background: var(--card); border: 1px solid var(--border);
   border-radius: calc(var(--radius) * 1.5);
   display: flex; flex-direction: column; gap: 10px;
 }
+.player-title { font-size: 14px; font-weight: 600; color: var(--foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .playlist-player-video { overflow: hidden; }
 .video-wrapper { position: relative; width: 100%; padding-top: 56.25%; border-radius: var(--radius); overflow: hidden; background: #000; }
 .video-wrapper iframe, .video-wrapper video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; }
-.player-title { font-size: 14px; font-weight: 600; color: var(--foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.player-controls { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 8px; }
-.player-play-btn {
-  width: 44px; height: 44px; border-radius: 50%;
-  background: linear-gradient(135deg, #e74c8b, #c96bde);
-  color: #fff; display: flex; align-items: center; justify-content: center;
-}
-.player-play-btn:hover { transform: scale(1.05); }
-.playlist-audio-player { width: 100%; }
-.playlist-audio-player audio { width: 100%; height: 36px; border-radius: var(--radius); }
 
 .counter-card {
   display: flex; align-items: center; gap: 12px; padding: 14px;

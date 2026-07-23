@@ -1041,35 +1041,13 @@ body {
 .video-wrapper { position: relative; width: 100%; padding-top: 56.25%; border-radius: var(--radius); overflow: hidden; background: #000; }
 .video-wrapper iframe, .video-wrapper video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; }
 .player-title { font-size: 14px; font-weight: 600; color: var(--foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.nh-audio-player { background: transparent !important; box-shadow: none !important; }
-.nh-audio-player .rhap_container { padding: 0 !important; }
-.nh-audio-player .rhap_controls-section { margin-top: 4px; }
-.nh-audio-player .rhap_play-pause-button {
-  color: var(--ring) !important; width: 36px !important; height: 36px !important;
+.player-controls { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 8px; }
+.player-play-btn {
+  width: 44px; height: 44px; border-radius: 50%;
+  background: linear-gradient(135deg, #e74c8b, #c96bde);
+  color: #fff; display: flex; align-items: center; justify-content: center;
 }
-.nh-audio-player .rhap_progress-bar {
-  height: 4px !important; border-radius: 2px;
-  background: var(--border) !important;
-}
-.nh-audio-player .rhap_progress-filled {
-  background: linear-gradient(90deg, #e74c8b, #c96bde) !important;
-  border-radius: 2px;
-}
-.nh-audio-player .rhap_progress-indicator {
-  width: 12px !important; height: 12px !important;
-  background: #e74c8b !important; border: 2px solid #fff !important;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
-}
-.nh-audio-player .rhap_time { font-size: 11px !important; color: var(--muted-foreground) !important; }
-.nh-audio-player .rhap_volume-section { display: flex !important; align-items: center !important; }
-.nh-audio-player .rhap_volume-bar {
-  height: 4px !important; border-radius: 2px;
-  background: var(--border) !important;
-}
-.nh-audio-player .rhap_volume-indicator {
-  width: 10px !important; height: 10px !important;
-  background: var(--ring) !important;
-}
+.player-play-btn:hover { transform: scale(1.05); }
 
 .counter-card {
   display: flex; align-items: center; gap: 12px; padding: 14px;

@@ -1,27 +1,20 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Music, Plus, Trash2, Play, Pause, Video, Shuffle, Repeat, Repeat1 } from 'lucide-react'
-import ReactAudioPlayer from 'react-h5-audio-player'
-import 'react-h5-audio-player/lib/styles.css'
+import ReactPlayer from 'react-player'
 import { supabase } from '../lib/supabase'
 import { useRoom } from '../context/RoomContext'
-
-function extractYouTubeId(url) {
-  const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([^&?#]+)/)
-  return m ? m[1] : null
-}
-
-function extractSpotifyId(url) {
-  const m = url.match(/spotify\.com\/(track|playlist|album)\/([a-zA-Z0-9]+)/)
-  return m ? { type: m[1], id: m[2] } : null
-}
 
 function isVideoFile(url) {
   return /\.(mp4|webm|mov|avi)(\?|$)/i.test(url)
 }
 
+function isAudioFile(url) {
+  return /\.(mp3|wav|ogg|flac|aac|m4a)(\?|$)/i.test(url)
+}
+
 function getSongType(url) {
-  if (extractYouTubeId(url)) return 'youtube'
-  if (extractSpotifyId(url)) return 'spotify'
+  if (/youtu(\.be|be\.com)/.test(url)) return 'youtube'
+  if (/spotify\.com/.test(url)) return 'spotify'
   if (isVideoFile(url)) return 'video'
   return 'audio'
 }
@@ -32,6 +25,7 @@ export default function Playlist() {
   const [url, setUrl] = useState('')
   const [title, setTitle] = useState('')
   const [currentIdx, setCurrentIdx] = useState(-1)
+  const [playing, setPlaying] = useState(false)
   const [shuffle, setShuffle] = useState(false)
   const [repeatMode, setRepeatMode] = useState('none')
   const playerRef = useRef(null)
@@ -61,17 +55,11 @@ export default function Playlist() {
 
   async function remove(id) {
     await supabase.from('playlist').delete().eq('id', id)
-    if (currentSong?.id === id) setCurrentIdx(-1)
-  }
-
-  const playSong = useCallback((idx) => {
-    if (idx === currentIdx) {
-      const audio = playerRef.current?.audio?.current
-      if (audio) audio.paused ? audio.play() : audio.pause()
-      return
+    if (currentSong?.id === id) {
+      setCurrentIdx(-1)
+      setPlaying(false)
     }
-    setCurrentIdx(idx)
-  }, [currentIdx])
+  }
 
   const getNextIdx = useCallback((fromIdx) => {
     if (songs.length === 0) return -1
@@ -87,80 +75,74 @@ export default function Playlist() {
     return next
   }, [songs.length, shuffle, repeatMode])
 
+  const playSong = useCallback((idx) => {
+    if (idx === currentIdx) {
+      setPlaying(p => !p)
+    } else {
+      setCurrentIdx(idx)
+      setPlaying(true)
+    }
+  }, [currentIdx])
+
   const handleEnded = useCallback(() => {
+    const next = getNextIdx(currentIdx)
+    if (next === -1) {
+      setPlaying(false)
+      return
+    }
+    setCurrentIdx(next)
+    setPlaying(true)
+  }, [currentIdx, getNextIdx])
+
+  const handleNext = useCallback(() => {
     const next = getNextIdx(currentIdx)
     if (next === -1) return
     setCurrentIdx(next)
+    setPlaying(true)
   }, [currentIdx, getNextIdx])
+
+  const handlePrev = useCallback(() => {
+    if (songs.length === 0) return
+    const prev = currentIdx <= 0 ? songs.length - 1 : currentIdx - 1
+    setCurrentIdx(prev)
+    setPlaying(true)
+  }, [currentIdx, songs.length])
 
   function renderPlayer() {
     if (!currentSong) return null
 
-    if (currentType === 'youtube') {
-      const vid = extractYouTubeId(currentSong.url)
-      return vid ? (
-        <div className="playlist-player playlist-player-video">
-          <span className="player-title">{currentSong.title}</span>
-          <div className="video-wrapper">
-            <iframe
-              src={`https://www.youtube-nocookie.com/embed/${vid}?modestbranding=1&rel=0&iv_load_policy=3&fs=0&enablejsapi=1`}
-              title={currentSong.title}
-              allow="autoplay; encrypted-media; picture-in-picture"
-              allowFullScreen={false}
-            />
-          </div>
-        </div>
-      ) : null
-    }
-
-    if (currentType === 'spotify') {
-      const s = extractSpotifyId(currentSong.url)
-      return s ? (
-        <div className="playlist-player">
-          <span className="player-title">{currentSong.title}</span>
-          <iframe
-            src={`https://open.spotify.com/embed/${s.type}/${s.id}?utm_source=generator&theme=0`}
-            width="100%"
-            height="80"
-            frameBorder="0"
-            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-            loading="lazy"
-            style={{ border: 'none', borderRadius: 'var(--radius)' }}
-          />
-        </div>
-      ) : null
-    }
-
-    if (currentType === 'video') {
-      return (
-        <div className="playlist-player playlist-player-video">
-          <span className="player-title">{currentSong.title}</span>
-          <div className="video-wrapper">
-            <video
-              ref={playerRef}
-              src={currentSong.url}
-              controls
-              autoPlay
-              onEnded={handleEnded}
-              playsInline
-            />
-          </div>
-        </div>
-      )
-    }
+    const isYoutube = currentType === 'youtube'
+    const isSpotify = currentType === 'spotify'
+    const isVideo = currentType === 'video'
+    const isAudio = currentType === 'audio'
 
     return (
-      <div className="playlist-player">
+      <div className={`playlist-player ${isVideo || isYoutube ? 'playlist-player-video' : ''}`}>
         <span className="player-title">{currentSong.title}</span>
-        <ReactAudioPlayer
-          ref={playerRef}
-          src={currentSong.url}
-          autoPlay
-          onEnded={handleEnded}
-          showJumpControls={false}
-          layout="stacked"
-          className="nh-audio-player"
-        />
+        <div className={isVideo || isYoutube ? 'video-wrapper' : ''}>
+          <ReactPlayer
+            ref={playerRef}
+            url={currentSong.url}
+            playing={playing}
+            onEnded={handleEnded}
+            onPlay={() => setPlaying(true)}
+            onPause={() => setPlaying(false)}
+            width="100%"
+            height={isVideo || isYoutube ? '100%' : undefined}
+            style={isVideo || isYoutube ? { position: 'absolute', top: 0, left: 0 } : {}}
+            config={{
+              youtube: { playerVars: { modestbranding: 1, rel: 0, iv_load_policy: 3, fs: 0 } },
+              spotify: { width: '100%', height: '80' },
+            }}
+          />
+        </div>
+        <div className="player-controls">
+          <button className="btn-icon" onClick={handlePrev}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></svg></button>
+          <button className="btn-icon player-play-btn" onClick={() => setPlaying(p => !p)}>
+            {playing ? <Pause size={20} /> : <Play size={20} />}
+          </button>
+          <button className="btn-icon" onClick={handleNext}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg></button>
+        </div>
       </div>
     )
   }
@@ -199,7 +181,7 @@ export default function Playlist() {
           const isActive = currentSong?.id === s.id
           return (
             <div key={s.id} className={`playlist-item ${isActive ? 'playlist-item-active' : ''}`} role="button" tabIndex={0} onClick={(e) => { e.preventDefault(); e.stopPropagation(); playSong(idx) }} onKeyDown={(e) => { if (e.key === 'Enter') playSong(idx) }}>
-              {isActive ? (
+              {isActive && playing ? (
                 <Pause size={18} className="playlist-play-icon" />
               ) : type === 'video' ? (
                 <Video size={18} className="playlist-play-icon" />

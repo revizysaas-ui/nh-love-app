@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Music, Plus, Trash2, Play, Pause, Video } from 'lucide-react'
+import { Music, Plus, Trash2, Play, Pause, Video, Shuffle, Repeat, Repeat1 } from 'lucide-react'
 import ReactAudioPlayer from 'react-h5-audio-player'
 import 'react-h5-audio-player/lib/styles.css'
 import { supabase } from '../lib/supabase'
@@ -19,10 +19,6 @@ function isVideoFile(url) {
   return /\.(mp4|webm|mov|avi)(\?|$)/i.test(url)
 }
 
-function isAudioFile(url) {
-  return /\.(mp3|wav|ogg|flac|aac|m4a)(\?|$)/i.test(url)
-}
-
 function getSongType(url) {
   if (extractYouTubeId(url)) return 'youtube'
   if (extractSpotifyId(url)) return 'spotify'
@@ -36,11 +32,12 @@ export default function Playlist() {
   const [url, setUrl] = useState('')
   const [title, setTitle] = useState('')
   const [currentIdx, setCurrentIdx] = useState(-1)
+  const [shuffle, setShuffle] = useState(false)
+  const [repeatMode, setRepeatMode] = useState('none')
   const playerRef = useRef(null)
 
   const currentSong = currentIdx >= 0 ? songs[currentIdx] : null
   const currentType = currentSong ? getSongType(currentSong.url) : null
-  const isPlayableAudio = currentType === 'audio' || currentType === 'video'
 
   useEffect(() => {
     if (!room) return
@@ -71,18 +68,30 @@ export default function Playlist() {
     if (idx === currentIdx) {
       const audio = playerRef.current?.audio?.current
       if (audio) audio.paused ? audio.play() : audio.pause()
-    } else {
-      setCurrentIdx(idx)
+      return
     }
+    setCurrentIdx(idx)
   }, [currentIdx])
 
+  const getNextIdx = useCallback((fromIdx) => {
+    if (songs.length === 0) return -1
+    if (repeatMode === 'one') return fromIdx
+    if (shuffle) {
+      if (songs.length <= 1) return 0
+      let r
+      do { r = Math.floor(Math.random() * songs.length) } while (r === fromIdx)
+      return r
+    }
+    const next = fromIdx + 1
+    if (next >= songs.length) return repeatMode === 'all' ? 0 : -1
+    return next
+  }, [songs.length, shuffle, repeatMode])
+
   const handleEnded = useCallback(() => {
-    if (songs.length === 0) return
-    setCurrentIdx(i => {
-      let next = (i + 1) % songs.length
-      return next
-    })
-  }, [songs.length])
+    const next = getNextIdx(currentIdx)
+    if (next === -1) return
+    setCurrentIdx(next)
+  }, [currentIdx, getNextIdx])
 
   function renderPlayer() {
     if (!currentSong) return null
@@ -167,6 +176,20 @@ export default function Playlist() {
         </div>
       </div>
 
+      {songs.length > 1 && (
+        <div className="playlist-modes">
+          <button className={`playlist-mode-btn ${shuffle ? 'active' : ''}`} onClick={() => setShuffle(s => !s)}>
+            <Shuffle size={16} /> Aléatoire
+          </button>
+          <button className={`playlist-mode-btn ${repeatMode === 'all' ? 'active' : ''}`} onClick={() => setRepeatMode(r => r === 'all' ? 'none' : 'all')}>
+            <Repeat size={16} /> Tout
+          </button>
+          <button className={`playlist-mode-btn ${repeatMode === 'one' ? 'active' : ''}`} onClick={() => setRepeatMode(r => r === 'one' ? 'none' : 'one')}>
+            <Repeat1 size={16} /> 1
+          </button>
+        </div>
+      )}
+
       {renderPlayer()}
 
       <div className="playlist-list">
@@ -187,6 +210,7 @@ export default function Playlist() {
                 <span>{s.title}</span>
                 <small>{s.author} · {new Date(s.created_at).toLocaleDateString('fr-FR')} · {type === 'youtube' ? 'YouTube' : type === 'spotify' ? 'Spotify' : type === 'video' ? 'Vidéo' : 'Audio'}</small>
               </div>
+              <span className="playlist-idx">{idx + 1}</span>
               <button className="btn-icon btn-danger-icon" onClick={e => { e.stopPropagation(); remove(s.id) }}><Trash2 size={14} /></button>
             </div>
           )

@@ -1021,6 +1021,16 @@ body {
 .playlist-item-active { border-color: var(--ring); background: rgba(138, 121, 171, 0.06); }
 .playlist-play-icon { color: var(--muted-foreground); flex-shrink: 0; transition: color 0.2s; }
 .playlist-item:hover .playlist-play-icon { color: var(--ring); }
+.playlist-idx { font-size: 12px; color: var(--muted-foreground); min-width: 18px; text-align: center; }
+.playlist-modes { display: flex; gap: 8px; margin-bottom: 12px; }
+.playlist-mode-btn {
+  display: flex; align-items: center; gap: 5px; padding: 6px 12px;
+  border: 1px solid var(--border); border-radius: 999px;
+  background: var(--card); color: var(--muted-foreground);
+  font-size: 12px; font-family: inherit; cursor: pointer; transition: all 0.2s;
+}
+.playlist-mode-btn:hover { border-color: var(--ring); color: var(--foreground); }
+.playlist-mode-btn.active { background: var(--ring); color: #fff; border-color: var(--ring); }
 .playlist-player {
   margin-bottom: 16px; padding: 14px;
   background: var(--card); border: 1px solid var(--border);

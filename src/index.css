@@ -1017,7 +1017,7 @@ body {
 .playlist-body { flex: 1; display: flex; flex-direction: column; gap: 2px; }
 .playlist-body span { font-size: 15px; color: var(--foreground); }
 .playlist-body small { font-size: 12px; color: var(--muted-foreground); }
-.playlist-item { cursor: pointer; }
+.playlist-item { cursor: pointer; -webkit-touch-callout: none; user-select: none; }
 .playlist-item-active { border-color: var(--ring); background: rgba(138, 121, 171, 0.06); }
 .playlist-play-icon { color: var(--muted-foreground); flex-shrink: 0; transition: color 0.2s; }
 .playlist-item:hover .playlist-play-icon { color: var(--ring); }

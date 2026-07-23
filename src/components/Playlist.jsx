@@ -146,7 +146,7 @@ export default function Playlist() {
           const type = getSongType(s.url)
           const isActive = currentSong?.id === s.id
           return (
-            <div key={s.id} className={`playlist-item ${isActive ? 'playlist-item-active' : ''}`} onClick={() => playSong(idx)}>
+            <div key={s.id} className={`playlist-item ${isActive ? 'playlist-item-active' : ''}`} role="button" tabIndex={0} onClick={(e) => { e.preventDefault(); e.stopPropagation(); playSong(idx) }} onKeyDown={(e) => { if (e.key === 'Enter') playSong(idx) }}>
               {isActive ? (
                 <Pause size={18} className="playlist-play-icon" />
               ) : (

@@ -102,8 +102,13 @@ export default function Playlist() {
   useEffect(() => {
     const el = currentType === 'audio' ? audioRef.current : currentType === 'video' ? videoRef.current : null
     if (!el) return
-    if (playing) el.play().catch(() => {})
-    else el.pause()
+    let cancelled = false
+    if (playing) {
+      el.play().catch(e => { if (!cancelled && e.name !== 'AbortError') console.warn(e) })
+    } else {
+      el.pause()
+    }
+    return () => { cancelled = true }
   }, [playing, currentIdx, currentType])
 
   function renderPlayer() {
@@ -122,6 +127,7 @@ export default function Playlist() {
               onEnded={goNext}
               onPlay={() => setPlaying(true)}
               onPause={() => setPlaying(false)}
+              onError={() => {}}
               width="100%"
               height="100%"
               style={{ position: 'absolute', top: 0, left: 0 }}
@@ -138,6 +144,7 @@ export default function Playlist() {
             onEnded={goNext}
             onPlay={() => setPlaying(true)}
             onPause={() => setPlaying(false)}
+            onError={() => {}}
             width="100%"
             height="80"
             config={{ spotify: { width: '100%', height: '80' } }}

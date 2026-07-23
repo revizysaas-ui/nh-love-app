@@ -44,6 +44,7 @@ const ROULETTE_COLORS = ['#8a79ab', '#e8b4c8', '#c4a8d8', '#b8a5d4', '#d47a9e', 
 function TruthOrDare() {
   const { room, username, updateGameState } = useRoom()
   const gs = room?.active_game?.state || {}
+  const canPlay = room?.active_game?.mode === 'duo' || room?.active_game?.by === username
 
   const [questions, setQuestions] = useState([])
   const [loading, setLoading] = useState(true)
@@ -85,29 +86,31 @@ function TruthOrDare() {
 
   return (
     <>
-      <div className="game-controls">
-        <div className="toggle-group">
-          {['truth', 'dare'].map(t => (
-            <button key={t} className={`toggle-btn ${cardType === t ? 'active' : ''}`} onClick={() => updateGameState({ state: { ...gs, type: t, currentCard: null, revealed: false } })}>
-              {t === 'truth' ? <AlertCircle size={16} /> : <Sparkles size={16} />}
-              {t === 'truth' ? 'Vérité' : 'Action'}
-            </button>
-          ))}
+      {canPlay && (
+        <div className="game-controls">
+          <div className="toggle-group">
+            {['truth', 'dare'].map(t => (
+              <button key={t} className={`toggle-btn ${cardType === t ? 'active' : ''}`} onClick={() => updateGameState({ state: { ...gs, type: t, currentCard: null, revealed: false } })}>
+                {t === 'truth' ? <AlertCircle size={16} /> : <Sparkles size={16} />}
+                {t === 'truth' ? 'Vérité' : 'Action'}
+              </button>
+            ))}
+          </div>
+          <div className="difficulty-group">
+            {DIFFICULTIES.map(d => (
+              <button key={d.key} className={`diff-btn ${cardDifficulty === d.key ? 'active' : ''}`}
+                style={{ borderColor: cardDifficulty === d.key ? d.color : 'transparent', background: cardDifficulty === d.key ? `${d.color}15` : '' }}
+                onClick={() => updateGameState({ state: { ...gs, difficulty: d.key, currentCard: null, revealed: false } })}>
+                <span>{d.emoji}</span><span>{d.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="difficulty-group">
-          {DIFFICULTIES.map(d => (
-            <button key={d.key} className={`diff-btn ${cardDifficulty === d.key ? 'active' : ''}`}
-              style={{ borderColor: cardDifficulty === d.key ? d.color : 'transparent', background: cardDifficulty === d.key ? `${d.color}15` : '' }}
-              onClick={() => updateGameState({ state: { ...gs, difficulty: d.key, currentCard: null, revealed: false } })}>
-              <span>{d.emoji}</span><span>{d.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
+      )}
 
-      {picker && !revealed && (
+      {!canPlay && (
         <p style={{ textAlign: 'center', fontSize: 14, color: 'var(--muted-foreground)', marginBottom: 12 }}>
-          {picker} a tiré une carte...
+          En attente du créateur...
         </p>
       )}
 
@@ -119,7 +122,7 @@ function TruthOrDare() {
               <div className="flip-card-face flip-card-front">
                 <Heart size={40} />
                 <p style={{ marginTop: 12, fontSize: 16 }}>
-                  {!revealed ? 'Clique pour révéler' : `${picker} a tiré une carte...`}
+                  {canPlay ? (!revealed ? 'Clique pour révéler' : 'Tu as tiré une carte...') : `${picker} a tiré une carte...`}
                 </p>
                 <small style={{ fontSize: 13, opacity: 0.8, marginTop: 8 }}>
                   {cardType === 'truth' ? 'Vérité' : 'Action'} · {diff?.label}
@@ -136,17 +139,21 @@ function TruthOrDare() {
         ) : (
           <div className="game-card idle">
             <Heart size={48} />
-            <p>Prêt à jouer ?</p>
-            <span>Choisis le niveau et lance-toi</span>
+            <p>{canPlay ? 'Prêt à jouer ?' : 'En attente du créateur...'}</p>
+            <span>{canPlay ? 'Choisis le niveau et lance-toi' : 'Le créateur lancera une carte'}</span>
           </div>
         )}
       </div>
 
       <div className="game-actions">
-        <button className="btn btn-primary btn-lg" onClick={!revealed ? reveal : pick}>
-          <Shuffle size={20} />
-          {revealed ? 'Suivant' : 'Révéler'}
-        </button>
+        {canPlay ? (
+          <button className="btn btn-primary btn-lg" onClick={!revealed ? reveal : pick}>
+            <Shuffle size={20} />
+            {revealed ? 'Suivant' : 'Révéler'}
+          </button>
+        ) : (
+          <p style={{ color: 'var(--muted-foreground)', fontSize: 14 }}>Le créateur contrôle la partie</p>
+        )}
       </div>
     </>
   )
@@ -423,6 +430,7 @@ function DailyGame() {
 function DefisGame() {
   const { room, username, updateGameState } = useRoom()
   const gs = room?.active_game?.state || {}
+  const canPlay = room?.active_game?.mode === 'duo' || room?.active_game?.by === username
   const fileRef = useRef(null)
   const notifiedRef = useRef(false)
 
@@ -458,12 +466,12 @@ function DefisGame() {
               </p>
             )}
             <div style={{ display: 'flex', gap: 10, marginTop: 20, flexWrap: 'wrap', justifyContent: 'center' }}>
-              {!gs.completedBy && (
+              {!gs.completedBy && canPlay && (
                 <button className="btn btn-primary btn-sm" onClick={complete}>
                   <CheckCircle2 size={14} /> C&apos;est fait !
                 </button>
               )}
-              {currentDefi.photo && (
+              {currentDefi.photo && canPlay && (
                 <button className="btn btn-sm" style={{ background: 'var(--secondary)', color: 'var(--foreground)' }}
                   onClick={() => fileRef.current?.click()}>
                   <Camera size={14} /> Photo
@@ -478,19 +486,21 @@ function DefisGame() {
             </div>
           </div>
         ) : (
-          <div className="game-card idle" onClick={pick}>
+          <div className="game-card idle" onClick={canPlay ? pick : undefined} style={!canPlay ? { opacity: 0.6, cursor: 'default' } : {}}>
             <Target size={48} />
             <p>Défis à Distance</p>
-            <span>Des petits challenges pour rester connectés</span>
+            <span>{canPlay ? 'Des petits challenges pour rester connectés' : 'Le créateur lancera un défi'}</span>
           </div>
         )}
       </div>
-      <div className="game-actions">
-        <button className="btn btn-primary btn-lg" onClick={pick}>
-          <Shuffle size={20} />
-          {currentDefi ? 'Nouveau défi' : 'Un défi !'}
-        </button>
-      </div>
+      {canPlay && (
+        <div className="game-actions">
+          <button className="btn btn-primary btn-lg" onClick={pick}>
+            <Shuffle size={20} />
+            {currentDefi ? 'Nouveau défi' : 'Un défi !'}
+          </button>
+        </div>
+      )}
     </>
   )
 }
@@ -613,6 +623,7 @@ function CultureGame() {
 function RoueGame() {
   const { room, username, updateGameState } = useRoom()
   const gs = room?.active_game?.state || {}
+  const canPlay = room?.active_game?.mode === 'duo' || room?.active_game?.by === username
 
   const choices = gs.choices || ['Film', 'Resto', 'Balade', 'Jeu', 'Série', 'Cuisine']
   const result = gs.result || null
@@ -675,24 +686,28 @@ function RoueGame() {
             </p>
           ) : (
             <p style={{ color: 'var(--muted-foreground)', textAlign: 'center', fontSize: 14, marginBottom: 8 }}>
-              Ajoute des choix et lance la roue !
+              {canPlay ? 'Ajoute des choix et lance la roue !' : 'Le créateur lancera la roue...'}
             </p>
           )}
 
-          <div className="roue-choices">
-            {choices.map((c, i) => (
-              <span key={i} className="roue-tag">{c}<button className="roue-tag-remove" onClick={() => removeChoice(i)}>×</button></span>
-            ))}
-          </div>
-          <div className="roue-input">
-            <input placeholder="Nouveau choix..." value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && addChoice()} />
-            <button className="btn btn-sm" onClick={addChoice} disabled={!input.trim() || choices.length >= 8}>+</button>
-          </div>
+          {canPlay && (
+            <>
+              <div className="roue-choices">
+                {choices.map((c, i) => (
+                  <span key={i} className="roue-tag">{c}<button className="roue-tag-remove" onClick={() => removeChoice(i)}>×</button></span>
+                ))}
+              </div>
+              <div className="roue-input">
+                <input placeholder="Nouveau choix..." value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && addChoice()} />
+                <button className="btn btn-sm" onClick={addChoice} disabled={!input.trim() || choices.length >= 8}>+</button>
+              </div>
+            </>
+          )}
         </div>
       </div>
       <div className="game-actions">
-        <button className="btn btn-primary btn-lg" onClick={spin} disabled={spinning || choices.length < 2}>
-          <Shuffle size={20} /> {spinning ? '...' : 'Lancer la roue !'}
+        <button className="btn btn-primary btn-lg" onClick={spin} disabled={spinning || choices.length < 2 || !canPlay}>
+          <Shuffle size={20} /> {spinning ? '...' : canPlay ? 'Lancer la roue !' : 'En attente...'}
         </button>
       </div>
     </>
@@ -710,6 +725,7 @@ function calculateMorpionWinner(squares) {
 
 function MorpionGame() {
   const { room, username } = useRoom()
+  const canPlay = room?.active_game?.mode === 'duo' || room?.active_game?.by === username
   const [board, setBoard] = useState(Array(9).fill(null))
   const [xIsNext, setXIsNext] = useState(true)
   const [winner, setWinner] = useState(null)
@@ -787,7 +803,7 @@ function MorpionGame() {
   const mySymbol = players.x === username ? 'X' : players.o === username ? 'O' : null
 
   function handleClick(i) {
-    if (board[i] || winner) return
+    if (board[i] || winner || !canPlay) return
     if (!notifiedRef.current && room) {
       notify(room.id, 'game', 'a lancé le Morpion ❌⭕', username)
       notifiedRef.current = true
@@ -809,6 +825,7 @@ function MorpionGame() {
   }
 
   async function reset() {
+    if (!canPlay) return
     const fresh = Array(9).fill(null)
     setBoard(fresh)
     setXIsNext(true)
@@ -821,6 +838,11 @@ function MorpionGame() {
 
   return (
     <>
+      {!canPlay && (
+        <p style={{ textAlign: 'center', fontSize: 14, color: 'var(--muted-foreground)', marginBottom: 12 }}>
+          Le créateur contrôle la partie
+        </p>
+      )}
       <div className="game-card-wrapper">
         <div className="game-card revealed" style={{ cursor: 'default', flexDirection: 'column', maxWidth: 320 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', marginBottom: 12, fontSize: 14, color: 'var(--muted-foreground)' }}>
@@ -830,12 +852,14 @@ function MorpionGame() {
           </div>
           <div className="morpion-board">
             {board.map((cell, i) => (
-              <button key={i} className={`morpion-cell ${cell ? 'taken' : ''}`} onClick={() => handleClick(i)}>
+              <button key={i} className={`morpion-cell ${cell ? 'taken' : ''} ${!canPlay ? '' : ''}`}
+                style={!canPlay && !cell ? { opacity: 0.5, cursor: 'default' } : {}}
+                onClick={() => handleClick(i)} disabled={!canPlay || !!cell || !!w}>
                 {cell && <span style={{ fontSize: 28 }}>{cell}</span>}
               </button>
             ))}
           </div>
-          {(w || board.every(s => s)) && (
+          {(w || board.every(s => s)) && canPlay && (
             <button className="btn btn-sm" style={{ marginTop: 12 }} onClick={reset}><RotateCcw size={14} /> Rejouer</button>
           )}
         </div>
@@ -847,6 +871,7 @@ function MorpionGame() {
 function WouldYouRather() {
   const { room, username, updateGameState } = useRoom()
   const gs = room?.active_game?.state || {}
+  const canPlay = room?.active_game?.mode === 'duo' || room?.active_game?.by === username
   const notifiedRef = useRef(false)
 
   const questionIndex = gs.questionIndex ?? null
@@ -884,10 +909,10 @@ function WouldYouRather() {
   if (!q) {
     return (
       <div className="game-card-wrapper">
-        <div className="game-card idle" onClick={start}>
+        <div className="game-card idle" onClick={canPlay ? start : undefined} style={!canPlay ? { opacity: 0.6, cursor: 'default' } : {}}>
           <Gamepad2 size={48} />
           <p>Tu Préfères</p>
-          <span>Choix impossibles en couple</span>
+          <span>{canPlay ? 'Choix impossibles en couple' : 'Le créateur lancera une question'}</span>
         </div>
       </div>
     )
@@ -898,7 +923,7 @@ function WouldYouRather() {
       <div className="game-card-wrapper">
         <div className="game-card revealed" style={{ cursor: 'default', maxWidth: 440 }}>
           <p style={{ fontSize: 13, color: 'var(--muted-foreground)', marginBottom: 12 }}>
-            {revealed ? 'Voici les choix !' : myChoice ? 'Tu as choisi !' : 'Choisis ton option'}
+            {revealed ? 'Voici les choix !' : myChoice ? 'Tu as choisi !' : canPlay ? 'Choisis ton option' : 'En attente du créateur...'}
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <button
@@ -909,9 +934,10 @@ function WouldYouRather() {
                   myChoice === 'a' ? 'var(--primary)' : 'var(--secondary)',
                 color: (myChoice === 'a' || (revealed && partnerChoice === 'a')) ? 'var(--primary-foreground)' : 'var(--foreground)',
                 border: myChoice === 'a' ? '2px solid var(--primary)' : '2px solid var(--input)',
-                opacity: revealed && myChoice !== 'a' && partnerChoice !== 'a' ? 0.5 : 1,
+                opacity: (revealed && myChoice !== 'a' && partnerChoice !== 'a') || !canPlay ? 0.5 : 1,
               }}
-              onClick={() => !myChoice && choose('a')}>
+              onClick={() => canPlay && !myChoice && choose('a')}
+              disabled={!canPlay || !!myChoice}>
               {q.a}
             </button>
             <p style={{ textAlign: 'center', fontSize: 13, fontWeight: 600, color: 'var(--muted-foreground)' }}>OU</p>
@@ -923,9 +949,10 @@ function WouldYouRather() {
                   myChoice === 'b' ? 'var(--accent)' : 'var(--secondary)',
                 color: (myChoice === 'b' || (revealed && partnerChoice === 'b')) ? 'var(--primary-foreground)' : 'var(--foreground)',
                 border: myChoice === 'b' ? '2px solid var(--accent)' : '2px solid var(--input)',
-                opacity: revealed && myChoice !== 'b' && partnerChoice !== 'b' ? 0.5 : 1,
+                opacity: (revealed && myChoice !== 'b' && partnerChoice !== 'b') || !canPlay ? 0.5 : 1,
               }}
-              onClick={() => !myChoice && choose('b')}>
+              onClick={() => canPlay && !myChoice && choose('b')}
+              disabled={!canPlay || !!myChoice}>
               {q.b}
             </button>
           </div>
@@ -934,7 +961,7 @@ function WouldYouRather() {
               ⏳ En attente de {partnerKey?.replace('choice_', '') || 'ton partenaire'}...
             </p>
           )}
-          {bothChose && !revealed && (
+          {bothChose && !revealed && canPlay && (
             <button className="btn btn-primary btn-full" style={{ marginTop: 12 }} onClick={showReveal}>
               Voir les choix 🎭
             </button>
@@ -946,11 +973,13 @@ function WouldYouRather() {
           )}
         </div>
       </div>
-      <div className="game-actions">
-        <button className="btn btn-sm" onClick={start}>
-          <RotateCcw size={14} /> Suivante
-        </button>
-      </div>
+      {canPlay && (
+        <div className="game-actions">
+          <button className="btn btn-sm" onClick={start}>
+            <RotateCcw size={14} /> Suivante
+          </button>
+        </div>
+      )}
     </>
   )
 }

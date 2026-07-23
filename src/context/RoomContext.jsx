@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import { supabase, setRoomToken } from '../lib/supabase'
 import { hashPin } from '../lib/crypto'
 
@@ -41,6 +41,9 @@ export function RoomProvider({ children }) {
   const [loading, setLoading] = useState(() => !!localStorage.getItem('nh_room'))
   const [username, setUsernameState] = useState(() => localStorage.getItem('nh_username') || '')
 
+  const roomRef = useRef(room)
+  roomRef.current = room
+
   const setUsername = useCallback((name) => {
     setUsernameState(name)
     localStorage.setItem('nh_username', name)
@@ -57,7 +60,8 @@ export function RoomProvider({ children }) {
         const { data, error } = await supabase
           .from('rooms').select('*').eq('id', saved).single()
         if (data) {
-          await ensureSession(data.id, username)
+          const uname = localStorage.getItem('nh_username') || ''
+          await ensureSession(data.id, uname)
           setRoom(data)
           setLoading(false)
           return
@@ -99,7 +103,7 @@ export function RoomProvider({ children }) {
       setRoom(data)
     }
     return data
-  }, [username])
+  }, [])
 
   const joinRoom = useCallback(async (code, password) => {
     let query = supabase.from('rooms').select('*').eq('code', code.toUpperCase())
@@ -111,44 +115,50 @@ export function RoomProvider({ children }) {
     const { data, error } = await query.single()
     if (data) {
       localStorage.setItem('nh_room', data.id)
-      await ensureSession(data.id, username)
+      const uname = localStorage.getItem('nh_username') || ''
+      await ensureSession(data.id, uname)
       setRoom(data)
     }
     return { data, error }
-  }, [username])
+  }, [])
 
   const updateRoom = useCallback(async (updates) => {
-    if (!room) return
-    const { data } = await supabase.from('rooms').update(updates).eq('id', room.id).select().single()
+    const current = roomRef.current
+    if (!current) return
+    const { data } = await supabase.from('rooms').update(updates).eq('id', current.id).select().single()
     if (data) setRoom(data)
-  }, [room])
+  }, [])
 
   const setRoomPassword = useCallback(async (password) => {
-    if (!room) return
-    const { data, error } = await supabase.from('rooms').update({ room_password: password || null }).eq('id', room.id).select().single()
+    const current = roomRef.current
+    if (!current) return
+    const { data, error } = await supabase.from('rooms').update({ room_password: password || null }).eq('id', current.id).select().single()
     if (data) setRoom(data)
     return { error }
-  }, [room])
+  }, [])
 
   const setAppLock = useCallback(async (pin) => {
-    if (!room) return
+    const current = roomRef.current
+    if (!current) return
     const hashed = pin ? await hashPin(pin) : null
-    const { data, error } = await supabase.from('rooms').update({ app_lock: hashed }).eq('id', room.id).select().single()
+    const { data, error } = await supabase.from('rooms').update({ app_lock: hashed }).eq('id', current.id).select().single()
     if (data) setRoom(data)
     return { error }
-  }, [room])
+  }, [])
 
   const updateGameState = useCallback(async (gameState) => {
-    if (!room) return
-    const current = room.active_game || {}
-    const merged = { ...current, ...gameState }
+    const current = roomRef.current
+    if (!current) return
+    const cur = current.active_game || {}
+    const merged = { ...cur, ...gameState }
     const payload = Object.keys(merged).length === 0 || (Object.keys(merged).length === 1 && merged.game === undefined) ? null : merged
-    const { data } = await supabase.from('rooms').update({ active_game: payload }).eq('id', room.id).select().single()
+    const { data } = await supabase.from('rooms').update({ active_game: payload }).eq('id', current.id).select().single()
     if (data) setRoom(data)
-  }, [room])
+  }, [])
 
   const leaveRoom = useCallback(() => {
-    const roomId = room?.id
+    const current = roomRef.current
+    const roomId = current?.id
     if (roomId) {
       localStorage.removeItem('nh_room_token_' + roomId)
     }
@@ -156,7 +166,7 @@ export function RoomProvider({ children }) {
     localStorage.removeItem('nh_room')
     localStorage.removeItem('nh_username')
     setRoom(null)
-  }, [room])
+  }, [])
 
   return (
     <RoomContext.Provider value={{ room, loading, createRoom, joinRoom, updateRoom, setRoomPassword, setAppLock, updateGameState, leaveRoom, username, setUsername }}>

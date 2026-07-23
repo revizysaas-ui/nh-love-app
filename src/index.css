@@ -595,23 +595,7 @@ body {
 }
 .game-notification:active { transform: scale(0.98); }
 
-.active-game-banner {
-  display: flex; align-items: center; gap: 10px; padding: 14px 16px;
-  background: linear-gradient(135deg, #22d3ee20, #34d39920);
-  border: 1.5px solid #22d3ee50; border-radius: calc(var(--radius) * 1.5);
-  cursor: pointer; margin-bottom: 20px; animation: fadeUp 0.3s ease;
-  font-size: 14px; color: var(--foreground);
-  box-shadow: 0 2px 12px rgba(34, 211, 238, 0.12);
-  transition: all 0.2s;
-}
-.active-game-banner:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(34, 211, 238, 0.2); }
-.active-game-banner:active { transform: scale(0.98); }
-.active-game-join {
-  margin-left: auto; font-weight: 700; font-size: 13px;
-  background: linear-gradient(135deg, #22d3ee, #34d399);
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
+
 
 .home-section { margin-bottom: 24px; }
 .home-section-header {
@@ -957,10 +941,7 @@ body {
 .flip-card-back p { font-size: 19px; font-weight: 600; line-height: 1.5; color: var(--foreground); }
 
 /* Disabled / spectator */
-.game-spectator {
-  opacity: 0.6; pointer-events: none; user-select: none;
-}
-.morpion-cell.disabled { opacity: 0.4; cursor: not-allowed; }
+
 
 /* ========== REACTIONS ========== */
 .btn-icon:disabled { opacity: 0.35; cursor: not-allowed; }

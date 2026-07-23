@@ -6,7 +6,7 @@ import { getDailyQuestion } from '../data/daily-questions'
 
 export default function Home() {
   const navigate = useNavigate()
-  const { room, username } = useRoom()
+  const { room } = useRoom()
   const [days, setDays] = useState(0)
   const [untilDays, setUntilDays] = useState(0)
   const [dailyQ, setDailyQ] = useState('')
@@ -20,8 +20,6 @@ export default function Home() {
     setUntilDays(Math.floor((meeting - now) / (1000 * 60 * 60 * 24)))
     setDailyQ(getDailyQuestion())
   }, [room])
-
-  const partnerGame = room?.active_game && room.active_game.by !== username ? room.active_game : null
 
   if (!room) return null
 
@@ -65,14 +63,6 @@ export default function Home() {
           <span>Depuis le {room.start_date}</span>
         </div>
       </div>
-
-      {partnerGame && (
-        <div className="active-game-banner" onClick={() => navigate(`/jeux?game=${partnerGame.game}`)}>
-          <Gamepad2 size={18} />
-          <span><strong>{partnerGame.by}</strong> joue à <strong>{partnerGame.label}</strong></span>
-          <span className="active-game-join">Rejoindre →</span>
-        </div>
-      )}
 
       {dailyQ && (
         <div className="daily-question-card" onClick={() => navigate('/jeux')}>

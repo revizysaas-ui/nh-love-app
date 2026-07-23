@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Gamepad2, Heart, Sparkles, Shuffle, RotateCcw, AlertCircle, HelpCircle, MessageCircle, Target, BookOpen, Camera, Send, CheckCircle2, XCircle, UserCheck, Cherry, Grid3X3, ArrowLeft, Users, User } from 'lucide-react'
+import { Gamepad2, Heart, Sparkles, Shuffle, RotateCcw, AlertCircle, HelpCircle, MessageCircle, Target, BookOpen, Camera, CheckCircle2, XCircle, UserCheck, Cherry, Grid3X3, ArrowLeft } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useRoom } from '../context/RoomContext'
 import { notify } from '../lib/notify'
@@ -10,14 +10,14 @@ import CULTURE_QUESTIONS from '../data/culture-questions'
 import DEFIS_DATA from '../data/defis'
 
 const GAMES_LIST = [
-  { key: 'truthdare', icon: Heart, label: 'Vérité ou Action', color: '#e74c8b', desc: 'Osez tout vous dire !', solo: true },
-  { key: 'quiz', icon: HelpCircle, label: 'Quiz Amour', color: '#8a79ab', desc: 'Combien vous connaissez-vous ?', solo: false },
-  { key: 'daily', icon: Sparkles, label: 'Question du Jour', color: '#d4a843', desc: 'Un moment de partage quotidien', solo: true },
-  { key: 'defis', icon: Target, label: 'Défis', color: '#e74c3c', desc: 'Relevez des défis ensemble !', solo: true },
-  { key: 'culture', icon: BookOpen, label: 'Culture G', color: '#4a90d9', desc: 'Culture générale en duo', solo: false },
-  { key: 'roue', icon: Cherry, label: 'Roue de la Chance', color: '#34d399', desc: 'Laissez le hasard décider', solo: true },
-  { key: 'morpion', icon: Grid3X3, label: 'Morpion', color: '#22d3ee', desc: 'Le classique revisité', solo: false },
-  { key: 'preferes', icon: Gamepad2, label: 'Tu Préfères', color: '#f97316', desc: 'Choix impossibles en couple', solo: false },
+  { key: 'truthdare', icon: Heart, label: 'Vérité ou Action', color: '#e74c8b', desc: 'Osez tout vous dire !' },
+  { key: 'quiz', icon: HelpCircle, label: 'Quiz Amour', color: '#8a79ab', desc: 'Combien vous connaissez-vous ?' },
+  { key: 'daily', icon: Sparkles, label: 'Question du Jour', color: '#d4a843', desc: 'Un moment de partage quotidien' },
+  { key: 'defis', icon: Target, label: 'Défis', color: '#e74c3c', desc: 'Relevez des défis ensemble !' },
+  { key: 'culture', icon: BookOpen, label: 'Culture G', color: '#4a90d9', desc: 'Culture générale en duo' },
+  { key: 'roue', icon: Cherry, label: 'Roue de la Chance', color: '#34d399', desc: 'Laissez le hasard décider' },
+  { key: 'morpion', icon: Grid3X3, label: 'Morpion', color: '#22d3ee', desc: 'Le classique revisité' },
+  { key: 'preferes', icon: Gamepad2, label: 'Tu Préfères', color: '#f97316', desc: 'Choix impossibles en couple' },
 ]
 
 const WYR_QUESTIONS = [
@@ -44,10 +44,6 @@ const ROULETTE_COLORS = ['#8a79ab', '#e8b4c8', '#c4a8d8', '#b8a5d4', '#d47a9e', 
 function TruthOrDare() {
   const { room, username, updateGameState } = useRoom()
   const gs = room?.active_game?.state || {}
-  const mode = room?.active_game?.mode || 'solo'
-  const gameCreator = room?.active_game?.by
-  const iAmCreator = gameCreator === username
-  const isSolo = mode === 'solo'
 
   const [questions, setQuestions] = useState([])
   const [loading, setLoading] = useState(true)
@@ -59,7 +55,6 @@ function TruthOrDare() {
   const cardDifficulty = gs.difficulty || 'soft'
   const revealed = gs.revealed || false
   const picker = gs.picker || null
-  const isMyTurn = isSolo || picker === username
 
   useEffect(() => { loadQuestions() }, [])
 
@@ -88,35 +83,31 @@ function TruthOrDare() {
 
   const diff = DIFFICULTIES.find(d => d.key === cardDifficulty)
 
-  const canControl = isSolo || iAmCreator
-
   return (
     <>
-      {canControl && (
-        <div className="game-controls">
-          <div className="toggle-group">
-            {['truth', 'dare'].map(t => (
-              <button key={t} className={`toggle-btn ${cardType === t ? 'active' : ''}`} onClick={() => updateGameState({ state: { ...gs, type: t, currentCard: null, revealed: false } })}>
-                {t === 'truth' ? <AlertCircle size={16} /> : <Sparkles size={16} />}
-                {t === 'truth' ? 'Vérité' : 'Action'}
-              </button>
-            ))}
-          </div>
-          <div className="difficulty-group">
-            {DIFFICULTIES.map(d => (
-              <button key={d.key} className={`diff-btn ${cardDifficulty === d.key ? 'active' : ''}`}
-                style={{ borderColor: cardDifficulty === d.key ? d.color : 'transparent', background: cardDifficulty === d.key ? `${d.color}15` : '' }}
-                onClick={() => updateGameState({ state: { ...gs, difficulty: d.key, currentCard: null, revealed: false } })}>
-                <span>{d.emoji}</span><span>{d.label}</span>
-              </button>
-            ))}
-          </div>
+      <div className="game-controls">
+        <div className="toggle-group">
+          {['truth', 'dare'].map(t => (
+            <button key={t} className={`toggle-btn ${cardType === t ? 'active' : ''}`} onClick={() => updateGameState({ state: { ...gs, type: t, currentCard: null, revealed: false } })}>
+              {t === 'truth' ? <AlertCircle size={16} /> : <Sparkles size={16} />}
+              {t === 'truth' ? 'Vérité' : 'Action'}
+            </button>
+          ))}
         </div>
-      )}
+        <div className="difficulty-group">
+          {DIFFICULTIES.map(d => (
+            <button key={d.key} className={`diff-btn ${cardDifficulty === d.key ? 'active' : ''}`}
+              style={{ borderColor: cardDifficulty === d.key ? d.color : 'transparent', background: cardDifficulty === d.key ? `${d.color}15` : '' }}
+              onClick={() => updateGameState({ state: { ...gs, difficulty: d.key, currentCard: null, revealed: false } })}>
+              <span>{d.emoji}</span><span>{d.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
 
-      {!canControl && currentCard && (
+      {picker && !revealed && (
         <p style={{ textAlign: 'center', fontSize: 14, color: 'var(--muted-foreground)', marginBottom: 12 }}>
-          {picker} tire les cartes — tu réagis !
+          {picker} a tiré une carte...
         </p>
       )}
 
@@ -128,7 +119,7 @@ function TruthOrDare() {
               <div className="flip-card-face flip-card-front">
                 <Heart size={40} />
                 <p style={{ marginTop: 12, fontSize: 16 }}>
-                  {isMyTurn ? 'Clique pour révéler' : `${picker} a tiré une carte...`}
+                  {!revealed ? 'Clique pour révéler' : `${picker} a tiré une carte...`}
                 </p>
                 <small style={{ fontSize: 13, opacity: 0.8, marginTop: 8 }}>
                   {cardType === 'truth' ? 'Vérité' : 'Action'} · {diff?.label}
@@ -145,21 +136,17 @@ function TruthOrDare() {
         ) : (
           <div className="game-card idle">
             <Heart size={48} />
-            <p>{canControl ? 'Prêt à jouer ?' : 'En attente du créateur...'}</p>
-            <span>{canControl ? 'Choisis le niveau et lance-toi' : 'Le créateur lancera une carte'}</span>
+            <p>Prêt à jouer ?</p>
+            <span>Choisis le niveau et lance-toi</span>
           </div>
         )}
       </div>
 
       <div className="game-actions">
-        {isMyTurn ? (
-          <button className="btn btn-primary btn-lg" onClick={!revealed ? reveal : pick}>
-            <Shuffle size={20} />
-            {revealed ? 'Suivant' : 'Révéler'}
-          </button>
-        ) : (
-          !currentCard && <p style={{ color: 'var(--muted-foreground)', fontSize: 14 }}>Attends que {gameCreator} lance une carte</p>
-        )}
+        <button className="btn btn-primary btn-lg" onClick={!revealed ? reveal : pick}>
+          <Shuffle size={20} />
+          {revealed ? 'Suivant' : 'Révéler'}
+        </button>
       </div>
     </>
   )
@@ -173,8 +160,6 @@ function QuizGame() {
   const [index, setIndex] = useState(0)
   const [answers, setAnswers] = useState([])
   const [score, setScore] = useState(0)
-  const [done, setDone] = useState(false)
-  const [showResults, setShowResults] = useState(false)
   const [partnerAnswers, setPartnerAnswers] = useState([])
 
   useEffect(() => {
@@ -278,7 +263,6 @@ function QuizGame() {
     setPartnerAnswers(newAnswers)
     await supabase.from('quiz_sessions').update({ partner_answers: newAnswers, score: s, completed: true }).eq('id', session.id)
     setPhase('results')
-    setShowResults(true)
   }
 
   async function cleanup() {
@@ -290,7 +274,6 @@ function QuizGame() {
     setPartnerAnswers([])
     setIndex(0)
     setScore(0)
-    setShowResults(false)
   }
 
   if (phase === 'loading') {
@@ -440,10 +423,6 @@ function DailyGame() {
 function DefisGame() {
   const { room, username, updateGameState } = useRoom()
   const gs = room?.active_game?.state || {}
-  const mode = room?.active_game?.mode || 'solo'
-  const gameCreator = room?.active_game?.by
-  const iAmCreator = gameCreator === username
-  const canControl = mode === 'solo' || iAmCreator
   const fileRef = useRef(null)
   const notifiedRef = useRef(false)
 
@@ -499,21 +478,19 @@ function DefisGame() {
             </div>
           </div>
         ) : (
-          <div className="game-card idle" onClick={canControl ? pick : undefined} style={!canControl ? { opacity: 0.6, cursor: 'default' } : {}}>
+          <div className="game-card idle" onClick={pick}>
             <Target size={48} />
             <p>Défis à Distance</p>
-            <span>{canControl ? 'Des petits challenges pour rester connectés' : 'Le créateur lancera un défi'}</span>
+            <span>Des petits challenges pour rester connectés</span>
           </div>
         )}
       </div>
-      {canControl && (
-        <div className="game-actions">
-          <button className="btn btn-primary btn-lg" onClick={pick}>
-            <Shuffle size={20} />
-            {currentDefi ? 'Nouveau défi' : 'Un défi !'}
-          </button>
-        </div>
-      )}
+      <div className="game-actions">
+        <button className="btn btn-primary btn-lg" onClick={pick}>
+          <Shuffle size={20} />
+          {currentDefi ? 'Nouveau défi' : 'Un défi !'}
+        </button>
+      </div>
     </>
   )
 }
@@ -636,10 +613,6 @@ function CultureGame() {
 function RoueGame() {
   const { room, username, updateGameState } = useRoom()
   const gs = room?.active_game?.state || {}
-  const mode = room?.active_game?.mode || 'solo'
-  const gameCreator = room?.active_game?.by
-  const iAmCreator = gameCreator === username
-  const canControl = mode === 'solo' || iAmCreator
 
   const choices = gs.choices || ['Film', 'Resto', 'Balade', 'Jeu', 'Série', 'Cuisine']
   const result = gs.result || null
@@ -702,28 +675,24 @@ function RoueGame() {
             </p>
           ) : (
             <p style={{ color: 'var(--muted-foreground)', textAlign: 'center', fontSize: 14, marginBottom: 8 }}>
-              {canControl ? 'Ajoute des choix et lance la roue !' : 'Le créateur lancera la roue...'}
+              Ajoute des choix et lance la roue !
             </p>
           )}
 
-          {canControl && (
-            <>
-              <div className="roue-choices">
-                {choices.map((c, i) => (
-                  <span key={i} className="roue-tag">{c}<button className="roue-tag-remove" onClick={() => removeChoice(i)}>×</button></span>
-                ))}
-              </div>
-              <div className="roue-input">
-                <input placeholder="Nouveau choix..." value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && addChoice()} />
-                <button className="btn btn-sm" onClick={addChoice} disabled={!input.trim() || choices.length >= 8}>+</button>
-              </div>
-            </>
-          )}
+          <div className="roue-choices">
+            {choices.map((c, i) => (
+              <span key={i} className="roue-tag">{c}<button className="roue-tag-remove" onClick={() => removeChoice(i)}>×</button></span>
+            ))}
+          </div>
+          <div className="roue-input">
+            <input placeholder="Nouveau choix..." value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && addChoice()} />
+            <button className="btn btn-sm" onClick={addChoice} disabled={!input.trim() || choices.length >= 8}>+</button>
+          </div>
         </div>
       </div>
       <div className="game-actions">
-        <button className="btn btn-primary btn-lg" onClick={spin} disabled={spinning || choices.length < 2 || !canControl}>
-          <Shuffle size={20} /> {spinning ? '...' : canControl ? 'Lancer la roue !' : 'En attente...'}
+        <button className="btn btn-primary btn-lg" onClick={spin} disabled={spinning || choices.length < 2}>
+          <Shuffle size={20} /> {spinning ? '...' : 'Lancer la roue !'}
         </button>
       </div>
     </>
@@ -741,11 +710,10 @@ function calculateMorpionWinner(squares) {
 
 function MorpionGame() {
   const { room, username } = useRoom()
-  const mode = room?.active_game?.mode || 'solo'
   const [board, setBoard] = useState(Array(9).fill(null))
   const [xIsNext, setXIsNext] = useState(true)
   const [winner, setWinner] = useState(null)
-  const [scores, setScores] = useState({ '💕': 0, '❤️': 0 })
+  const [scores, setScores] = useState({ 'X': 0, 'O': 0 })
   const [gameId, setGameId] = useState(null)
   const notifiedRef = useRef(false)
   const gameIdRef = useRef(null)
@@ -763,7 +731,7 @@ function MorpionGame() {
           const newBoard = Array.isArray(payload.new.board) ? payload.new.board : (typeof payload.new.board === 'string' ? JSON.parse(payload.new.board) : Array(9).fill(null))
           setBoard(newBoard)
           setXIsNext(payload.new.x_is_next)
-          setScores(payload.new.scores || { '💕': 0, '❤️': 0 })
+          setScores(payload.new.scores || { 'X': 0, 'O': 0 })
           setWinner(calculateMorpionWinner(newBoard))
           if (payload.new.players) setPlayers(payload.new.players)
         }
@@ -787,7 +755,7 @@ function MorpionGame() {
       const b = Array.isArray(data.board) ? data.board : (typeof data.board === 'string' ? JSON.parse(data.board) : Array(9).fill(null))
       setBoard(b)
       setXIsNext(data.x_is_next)
-      setScores(data.scores || { '💕': 0, '❤️': 0 })
+      setScores(data.scores || { 'X': 0, 'O': 0 })
       setGameId(data.id)
       setWinner(calculateMorpionWinner(b))
       if (data.players) setPlayers(data.players)
@@ -816,19 +784,18 @@ function MorpionGame() {
     return newPlayers
   }
 
-  const mySymbol = players.x === username ? '💕' : players.o === username ? '❤️' : null
-  const isMyTurn = mode === 'solo' ? true : (mySymbol && ((mySymbol === '💕' && xIsNext) || (mySymbol === '❤️' && !xIsNext)))
+  const mySymbol = players.x === username ? 'X' : players.o === username ? 'O' : null
 
   function handleClick(i) {
-    if (board[i] || winner || !isMyTurn) return
+    if (board[i] || winner) return
     if (!notifiedRef.current && room) {
       notify(room.id, 'game', 'a lancé le Morpion ❌⭕', username)
       notifiedRef.current = true
     }
     const newPlayers = assignSymbol()
     setPlayers(newPlayers)
+    const symbol = xIsNext ? 'X' : 'O'
     const newBoard = [...board]
-    const symbol = mode === 'solo' ? (xIsNext ? 'X' : 'O') : mySymbol
     newBoard[i] = symbol
     const newXIsNext = !xIsNext
     const w = calculateMorpionWinner(newBoard)
@@ -850,26 +817,20 @@ function MorpionGame() {
   }
 
   const w = calculateMorpionWinner(board)
-  const status = w === 'draw' ? 'Match nul !' : w ? `${w} a gagné !` : mode === 'solo' ? (xIsNext ? 'Tour de X' : 'Tour de O') : !mySymbol ? 'Choisis ton camp' : isMyTurn ? 'Ton tour !' : 'Tour du partenaire...'
+  const status = w === 'draw' ? 'Match nul !' : w ? `${w} a gagné !` : xIsNext ? 'Tour de X' : 'Tour de O'
 
   return (
     <>
-      {mode !== 'solo' && !mySymbol && !w && (
-        <p style={{ textAlign: 'center', fontSize: 14, color: 'var(--muted-foreground)', marginBottom: 12 }}>
-          Joue pour t&apos;attribuer un symbole automatiquement
-        </p>
-      )}
       <div className="game-card-wrapper">
         <div className="game-card revealed" style={{ cursor: 'default', flexDirection: 'column', maxWidth: 320 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', marginBottom: 12, fontSize: 14, color: 'var(--muted-foreground)' }}>
-            <span>{mode === 'solo' ? 'X' : '💕'}: {scores[mode === 'solo' ? 'X' : '💕']}</span>
-            <span style={{ fontWeight: 700, color: w ? 'var(--primary)' : isMyTurn ? '#34d399' : 'var(--foreground)' }}>{status}</span>
-            <span>{mode === 'solo' ? 'O' : '❤️'}: {scores[mode === 'solo' ? 'O' : '❤️']}</span>
+            <span>X: {scores['X']}</span>
+            <span style={{ fontWeight: 700, color: w ? 'var(--primary)' : 'var(--foreground)' }}>{status}</span>
+            <span>O: {scores['O']}</span>
           </div>
           <div className="morpion-board">
             {board.map((cell, i) => (
-              <button key={i} className={`morpion-cell ${cell ? 'taken' : ''} ${!isMyTurn && !cell && !w ? 'disabled' : ''}`}
-                onClick={() => handleClick(i)} disabled={!isMyTurn && !w}>
+              <button key={i} className={`morpion-cell ${cell ? 'taken' : ''}`} onClick={() => handleClick(i)}>
                 {cell && <span style={{ fontSize: 28 }}>{cell}</span>}
               </button>
             ))}
@@ -886,10 +847,6 @@ function MorpionGame() {
 function WouldYouRather() {
   const { room, username, updateGameState } = useRoom()
   const gs = room?.active_game?.state || {}
-  const mode = room?.active_game?.mode || 'solo'
-  const gameCreator = room?.active_game?.by
-  const iAmCreator = gameCreator === username
-  const canControl = mode === 'solo' || iAmCreator
   const notifiedRef = useRef(false)
 
   const questionIndex = gs.questionIndex ?? null
@@ -927,10 +884,10 @@ function WouldYouRather() {
   if (!q) {
     return (
       <div className="game-card-wrapper">
-        <div className="game-card idle" onClick={canControl ? start : undefined} style={!canControl ? { opacity: 0.6, cursor: 'default' } : {}}>
+        <div className="game-card idle" onClick={start}>
           <Gamepad2 size={48} />
           <p>Tu Préfères</p>
-          <span>{canControl ? 'Choix impossibles en couple' : 'Le créateur lancera une question'}</span>
+          <span>Choix impossibles en couple</span>
         </div>
       </div>
     )
@@ -977,7 +934,7 @@ function WouldYouRather() {
               ⏳ En attente de {partnerKey?.replace('choice_', '') || 'ton partenaire'}...
             </p>
           )}
-          {bothChose && !revealed && canControl && (
+          {bothChose && !revealed && (
             <button className="btn btn-primary btn-full" style={{ marginTop: 12 }} onClick={showReveal}>
               Voir les choix 🎭
             </button>
@@ -1036,13 +993,6 @@ export default function Games() {
     }
   }
 
-  useEffect(() => {
-    if (active === null && room?.active_game && room.active_game.by !== username) {
-      setActive(room.active_game.game)
-      setSearchParams({ game: room.active_game.game })
-    }
-  }, [room?.active_game])
-
   function handleCreateSelect(gameKey) {
     if (createMode === 'duo' || createMode === 'solo') {
       openGame(gameKey, createMode)
@@ -1068,7 +1018,7 @@ export default function Games() {
             <div>
               <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>{game?.label}</h2>
               <p style={{ fontSize: 12, color: 'var(--muted-foreground)', margin: 0 }}>
-                {gameMode === 'solo' ? 'Solo' : 'En couple'} · Créé par {room?.active_game?.by}
+                {gameMode === 'solo' ? 'Solo' : 'En couple'}
               </p>
             </div>
           </div>
@@ -1090,39 +1040,33 @@ export default function Games() {
           </h2>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          {GAMES_LIST.map(game => {
-            const disabled = createMode === 'solo' && !game.solo
-            return (
-              <button
-                key={game.key}
-                onClick={() => !disabled && handleCreateSelect(game.key)}
-                disabled={disabled}
-                style={{
-                  background: 'var(--card)',
-                  borderRadius: 'calc(var(--radius) * 1.5)',
-                  padding: 16,
-                  border: disabled ? '1px solid var(--border)' : '1px solid var(--border)',
-                  cursor: disabled ? 'not-allowed' : 'pointer',
-                  textAlign: 'left',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 8,
-                  transition: 'all 0.2s',
-                  minWidth: 0,
-                  opacity: disabled ? 0.4 : 1,
-                }}
-                onMouseEnter={e => { if (!disabled) { e.currentTarget.style.borderColor = 'rgba(138, 121, 171, 0.3)'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(138, 121, 171, 0.12)' } }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '' }}
-              >
-                <div style={{ display: 'inline-flex', padding: 8, borderRadius: 'var(--radius)', background: `${game.color}15`, color: game.color, alignSelf: 'flex-start' }}>
-                  <game.icon size={22} />
-                </div>
-                <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--foreground)', margin: 0 }}>{game.label}</p>
-                <p style={{ fontSize: 12, color: 'var(--muted-foreground)', lineHeight: 1.3, margin: 0 }}>{game.desc}</p>
-                {disabled && <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: 0, fontStyle: 'italic' }}>Solo uniquement</p>}
-              </button>
-            )
-          })}
+          {GAMES_LIST.map(game => (
+            <button
+              key={game.key}
+              onClick={() => handleCreateSelect(game.key)}
+              style={{
+                background: 'var(--card)',
+                borderRadius: 'calc(var(--radius) * 1.5)',
+                padding: 16,
+                border: '1px solid var(--border)',
+                cursor: 'pointer',
+                textAlign: 'left',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+                transition: 'all 0.2s',
+                minWidth: 0,
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(138, 121, 171, 0.3)'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(138, 121, 171, 0.12)' }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '' }}
+            >
+              <div style={{ display: 'inline-flex', padding: 8, borderRadius: 'var(--radius)', background: `${game.color}15`, color: game.color, alignSelf: 'flex-start' }}>
+                <game.icon size={22} />
+              </div>
+              <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--foreground)', margin: 0 }}>{game.label}</p>
+              <p style={{ fontSize: 12, color: 'var(--muted-foreground)', lineHeight: 1.3, margin: 0 }}>{game.desc}</p>
+            </button>
+          ))}
         </div>
       </div>
     )
@@ -1134,13 +1078,6 @@ export default function Games() {
         <Gamepad2 size={24} />
         <h2>Nos Jeux</h2>
       </div>
-      {room?.active_game && room.active_game.by !== username && (
-        <div className="active-game-banner" onClick={() => openGame(room.active_game.game, room.active_game.mode)}>
-          <Gamepad2 size={18} />
-          <span><strong>{room.active_game.by}</strong> joue à <strong>{room.active_game.label}</strong> ({room.active_game.mode === 'solo' ? 'solo' : 'couple'})</span>
-          <span className="active-game-join">Rejoindre →</span>
-        </div>
-      )}
       <button
         onClick={() => setCreating(true)}
         className="btn btn-primary btn-full btn-lg"

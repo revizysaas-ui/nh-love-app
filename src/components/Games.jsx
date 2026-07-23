@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Gamepad2, Heart, Sparkles, Shuffle, RotateCcw, AlertCircle, HelpCircle, MessageCircle, Target, BookOpen, Camera, Send, CheckCircle2, XCircle, UserCheck, Cherry, Grid3X3, ArrowLeft } from 'lucide-react'
+import { Gamepad2, Heart, Sparkles, Shuffle, RotateCcw, AlertCircle, HelpCircle, MessageCircle, Target, BookOpen, Camera, Send, CheckCircle2, XCircle, UserCheck, Cherry, Grid3X3, ArrowLeft, Users, User } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useRoom } from '../context/RoomContext'
 import { notify } from '../lib/notify'
@@ -10,14 +10,14 @@ import CULTURE_QUESTIONS from '../data/culture-questions'
 import DEFIS_DATA from '../data/defis'
 
 const GAMES_LIST = [
-  { key: 'truthdare', icon: Heart, label: 'Vérité ou Action', color: '#e74c8b', desc: 'Osez tout vous dire !' },
-  { key: 'quiz', icon: HelpCircle, label: 'Quiz Amour', color: '#8a79ab', desc: 'Combien vous connaissez-vous ?' },
-  { key: 'daily', icon: Sparkles, label: 'Question du Jour', color: '#d4a843', desc: 'Un moment de partage quotidien' },
-  { key: 'defis', icon: Target, label: 'Défis', color: '#e74c3c', desc: 'Relevez des défis ensemble !' },
-  { key: 'culture', icon: BookOpen, label: 'Culture G', color: '#4a90d9', desc: 'Culture générale en duo' },
-  { key: 'roue', icon: Cherry, label: 'Roue de la Chance', color: '#34d399', desc: 'Laissez le hasard décider' },
-  { key: 'morpion', icon: Grid3X3, label: 'Morpion', color: '#22d3ee', desc: 'Le classique revisité' },
-  { key: 'preferes', icon: Gamepad2, label: 'Tu Préfères', color: '#f97316', desc: 'Choix impossibles en couple' },
+  { key: 'truthdare', icon: Heart, label: 'Vérité ou Action', color: '#e74c8b', desc: 'Osez tout vous dire !', solo: true },
+  { key: 'quiz', icon: HelpCircle, label: 'Quiz Amour', color: '#8a79ab', desc: 'Combien vous connaissez-vous ?', solo: false },
+  { key: 'daily', icon: Sparkles, label: 'Question du Jour', color: '#d4a843', desc: 'Un moment de partage quotidien', solo: true },
+  { key: 'defis', icon: Target, label: 'Défis', color: '#e74c3c', desc: 'Relevez des défis ensemble !', solo: true },
+  { key: 'culture', icon: BookOpen, label: 'Culture G', color: '#4a90d9', desc: 'Culture générale en duo', solo: false },
+  { key: 'roue', icon: Cherry, label: 'Roue de la Chance', color: '#34d399', desc: 'Laissez le hasard décider', solo: true },
+  { key: 'morpion', icon: Grid3X3, label: 'Morpion', color: '#22d3ee', desc: 'Le classique revisité', solo: false },
+  { key: 'preferes', icon: Gamepad2, label: 'Tu Préfères', color: '#f97316', desc: 'Choix impossibles en couple', solo: false },
 ]
 
 const WYR_QUESTIONS = [
@@ -44,6 +44,11 @@ const ROULETTE_COLORS = ['#8a79ab', '#e8b4c8', '#c4a8d8', '#b8a5d4', '#d47a9e', 
 function TruthOrDare() {
   const { room, username, updateGameState } = useRoom()
   const gs = room?.active_game?.state || {}
+  const mode = room?.active_game?.mode || 'solo'
+  const gameCreator = room?.active_game?.by
+  const iAmCreator = gameCreator === username
+  const isSolo = mode === 'solo'
+
   const [questions, setQuestions] = useState([])
   const [loading, setLoading] = useState(true)
   const [usedIds, setUsedIds] = useState([])
@@ -54,9 +59,7 @@ function TruthOrDare() {
   const cardDifficulty = gs.difficulty || 'soft'
   const revealed = gs.revealed || false
   const picker = gs.picker || null
-  const isMyTurn = picker === username
-  const gameCreator = room?.active_game?.by
-  const iAmCreator = gameCreator === username
+  const isMyTurn = isSolo || picker === username
 
   useEffect(() => { loadQuestions() }, [])
 
@@ -85,9 +88,11 @@ function TruthOrDare() {
 
   const diff = DIFFICULTIES.find(d => d.key === cardDifficulty)
 
+  const canControl = isSolo || iAmCreator
+
   return (
     <>
-      {iAmCreator && (
+      {canControl && (
         <div className="game-controls">
           <div className="toggle-group">
             {['truth', 'dare'].map(t => (
@@ -109,7 +114,7 @@ function TruthOrDare() {
         </div>
       )}
 
-      {!iAmCreator && currentCard && (
+      {!canControl && currentCard && (
         <p style={{ textAlign: 'center', fontSize: 14, color: 'var(--muted-foreground)', marginBottom: 12 }}>
           {picker} tire les cartes — tu réagis !
         </p>
@@ -140,8 +145,8 @@ function TruthOrDare() {
         ) : (
           <div className="game-card idle">
             <Heart size={48} />
-            <p>{iAmCreator ? 'Prêt à jouer ?' : 'En attente du créateur...'}</p>
-            <span>{iAmCreator ? 'Choisis le niveau et lance-toi' : 'Le créateur lancera une carte'}</span>
+            <p>{canControl ? 'Prêt à jouer ?' : 'En attente du créateur...'}</p>
+            <span>{canControl ? 'Choisis le niveau et lance-toi' : 'Le créateur lancera une carte'}</span>
           </div>
         )}
       </div>
@@ -435,6 +440,10 @@ function DailyGame() {
 function DefisGame() {
   const { room, username, updateGameState } = useRoom()
   const gs = room?.active_game?.state || {}
+  const mode = room?.active_game?.mode || 'solo'
+  const gameCreator = room?.active_game?.by
+  const iAmCreator = gameCreator === username
+  const canControl = mode === 'solo' || iAmCreator
   const fileRef = useRef(null)
   const notifiedRef = useRef(false)
 
@@ -472,7 +481,7 @@ function DefisGame() {
             <div style={{ display: 'flex', gap: 10, marginTop: 20, flexWrap: 'wrap', justifyContent: 'center' }}>
               {!gs.completedBy && (
                 <button className="btn btn-primary btn-sm" onClick={complete}>
-                  <CheckCircle2 size={14} /> C'est fait !
+                  <CheckCircle2 size={14} /> C&apos;est fait !
                 </button>
               )}
               {currentDefi.photo && (
@@ -490,19 +499,21 @@ function DefisGame() {
             </div>
           </div>
         ) : (
-          <div className="game-card idle" onClick={pick}>
+          <div className="game-card idle" onClick={canControl ? pick : undefined} style={!canControl ? { opacity: 0.6, cursor: 'default' } : {}}>
             <Target size={48} />
             <p>Défis à Distance</p>
-            <span>Des petits challenges pour rester connectés</span>
+            <span>{canControl ? 'Des petits challenges pour rester connectés' : 'Le créateur lancera un défi'}</span>
           </div>
         )}
       </div>
-      <div className="game-actions">
-        <button className="btn btn-primary btn-lg" onClick={pick}>
-          <Shuffle size={20} />
-          {currentDefi ? 'Nouveau défi' : 'Un défi !'}
-        </button>
-      </div>
+      {canControl && (
+        <div className="game-actions">
+          <button className="btn btn-primary btn-lg" onClick={pick}>
+            <Shuffle size={20} />
+            {currentDefi ? 'Nouveau défi' : 'Un défi !'}
+          </button>
+        </div>
+      )}
     </>
   )
 }
@@ -546,14 +557,7 @@ function CultureGame() {
     }
   }
 
-  const myScore = questions.filter((q, i) => {
-    const myAns = gs[`answer_${username}`]
-    return myAns !== null
-  }).length
-
   if (done || (started && index === null)) {
-    let totalScore = 0
-    questions.forEach((q) => { if (q) totalScore++ })
     return (
       <div className="game-card-wrapper">
         <div className="game-card revealed" style={{ cursor: 'default' }}>
@@ -632,6 +636,10 @@ function CultureGame() {
 function RoueGame() {
   const { room, username, updateGameState } = useRoom()
   const gs = room?.active_game?.state || {}
+  const mode = room?.active_game?.mode || 'solo'
+  const gameCreator = room?.active_game?.by
+  const iAmCreator = gameCreator === username
+  const canControl = mode === 'solo' || iAmCreator
 
   const choices = gs.choices || ['Film', 'Resto', 'Balade', 'Jeu', 'Série', 'Cuisine']
   const result = gs.result || null
@@ -671,7 +679,7 @@ function RoueGame() {
       <div className="game-card-wrapper">
         <div className="game-card revealed" style={{ cursor: 'default', maxWidth: 440, flexDirection: 'column' }}>
           <div style={{ position: 'relative', width: 200, height: 200, margin: '0 auto 16px' }}>
-            <svg viewBox="0 0 200 200" style={{ width: '100%', height: '100%', transform: `rotate(${spinning ? rotation : rotation}deg)`, transition: spinning ? 'transform 3s cubic-bezier(0.17, 0.67, 0.12, 0.99)' : 'none' }}>
+            <svg viewBox="0 0 200 200" style={{ width: '100%', height: '100%', transform: `rotate(${rotation}deg)`, transition: spinning ? 'transform 3s cubic-bezier(0.17, 0.67, 0.12, 0.99)' : 'none' }}>
               {choices.map((_, i) => {
                 const angle = (i * 360) / choices.length
                 const rad = (angle * Math.PI) / 180
@@ -694,24 +702,28 @@ function RoueGame() {
             </p>
           ) : (
             <p style={{ color: 'var(--muted-foreground)', textAlign: 'center', fontSize: 14, marginBottom: 8 }}>
-              Ajoute des choix et lance la roue !
+              {canControl ? 'Ajoute des choix et lance la roue !' : 'Le créateur lancera la roue...'}
             </p>
           )}
 
-          <div className="roue-choices">
-            {choices.map((c, i) => (
-              <span key={i} className="roue-tag">{c}<button className="roue-tag-remove" onClick={() => removeChoice(i)}>×</button></span>
-            ))}
-          </div>
-          <div className="roue-input">
-            <input placeholder="Nouveau choix..." value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && addChoice()} />
-            <button className="btn btn-sm" onClick={addChoice} disabled={!input.trim() || choices.length >= 8}>+</button>
-          </div>
+          {canControl && (
+            <>
+              <div className="roue-choices">
+                {choices.map((c, i) => (
+                  <span key={i} className="roue-tag">{c}<button className="roue-tag-remove" onClick={() => removeChoice(i)}>×</button></span>
+                ))}
+              </div>
+              <div className="roue-input">
+                <input placeholder="Nouveau choix..." value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && addChoice()} />
+                <button className="btn btn-sm" onClick={addChoice} disabled={!input.trim() || choices.length >= 8}>+</button>
+              </div>
+            </>
+          )}
         </div>
       </div>
       <div className="game-actions">
-        <button className="btn btn-primary btn-lg" onClick={spin} disabled={spinning || choices.length < 2}>
-          <Shuffle size={20} /> {spinning ? '...' : 'Lancer la roue !'}
+        <button className="btn btn-primary btn-lg" onClick={spin} disabled={spinning || choices.length < 2 || !canControl}>
+          <Shuffle size={20} /> {spinning ? '...' : canControl ? 'Lancer la roue !' : 'En attente...'}
         </button>
       </div>
     </>
@@ -729,6 +741,7 @@ function calculateMorpionWinner(squares) {
 
 function MorpionGame() {
   const { room, username } = useRoom()
+  const mode = room?.active_game?.mode || 'solo'
   const [board, setBoard] = useState(Array(9).fill(null))
   const [xIsNext, setXIsNext] = useState(true)
   const [winner, setWinner] = useState(null)
@@ -804,7 +817,7 @@ function MorpionGame() {
   }
 
   const mySymbol = players.x === username ? '💕' : players.o === username ? '❤️' : null
-  const isMyTurn = mySymbol && ((mySymbol === '💕' && xIsNext) || (mySymbol === '❤️' && !xIsNext))
+  const isMyTurn = mode === 'solo' ? true : (mySymbol && ((mySymbol === '💕' && xIsNext) || (mySymbol === '❤️' && !xIsNext)))
 
   function handleClick(i) {
     if (board[i] || winner || !isMyTurn) return
@@ -815,11 +828,12 @@ function MorpionGame() {
     const newPlayers = assignSymbol()
     setPlayers(newPlayers)
     const newBoard = [...board]
-    newBoard[i] = mySymbol
+    const symbol = mode === 'solo' ? (xIsNext ? 'X' : 'O') : mySymbol
+    newBoard[i] = symbol
     const newXIsNext = !xIsNext
     const w = calculateMorpionWinner(newBoard)
     let newScores = { ...scores }
-    if (w && w !== 'draw') newScores = { ...scores, [mySymbol]: scores[mySymbol] + 1 }
+    if (w && w !== 'draw') newScores = { ...scores, [symbol]: (scores[symbol] || 0) + 1 }
     setBoard(newBoard)
     setXIsNext(newXIsNext)
     if (w) setWinner(w)
@@ -829,19 +843,18 @@ function MorpionGame() {
 
   async function reset() {
     const fresh = Array(9).fill(null)
-    const newPlayers = players
     setBoard(fresh)
     setXIsNext(true)
     setWinner(null)
-    syncGame(fresh, true, scores, newPlayers)
+    syncGame(fresh, true, scores, players)
   }
 
   const w = calculateMorpionWinner(board)
-  const status = w === 'draw' ? 'Match nul !' : w ? `${w} a gagné !` : !mySymbol ? 'Choisis ton camp' : isMyTurn ? 'Ton tour !' : 'Tour du partenaire...'
+  const status = w === 'draw' ? 'Match nul !' : w ? `${w} a gagné !` : mode === 'solo' ? (xIsNext ? 'Tour de X' : 'Tour de O') : !mySymbol ? 'Choisis ton camp' : isMyTurn ? 'Ton tour !' : 'Tour du partenaire...'
 
   return (
     <>
-      {!mySymbol && !w && (
+      {mode !== 'solo' && !mySymbol && !w && (
         <p style={{ textAlign: 'center', fontSize: 14, color: 'var(--muted-foreground)', marginBottom: 12 }}>
           Joue pour t&apos;attribuer un symbole automatiquement
         </p>
@@ -849,9 +862,9 @@ function MorpionGame() {
       <div className="game-card-wrapper">
         <div className="game-card revealed" style={{ cursor: 'default', flexDirection: 'column', maxWidth: 320 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', marginBottom: 12, fontSize: 14, color: 'var(--muted-foreground)' }}>
-            <span>💕: {scores['💕']}</span>
+            <span>{mode === 'solo' ? 'X' : '💕'}: {scores[mode === 'solo' ? 'X' : '💕']}</span>
             <span style={{ fontWeight: 700, color: w ? 'var(--primary)' : isMyTurn ? '#34d399' : 'var(--foreground)' }}>{status}</span>
-            <span>❤️: {scores['❤️']}</span>
+            <span>{mode === 'solo' ? 'O' : '❤️'}: {scores[mode === 'solo' ? 'O' : '❤️']}</span>
           </div>
           <div className="morpion-board">
             {board.map((cell, i) => (
@@ -873,6 +886,10 @@ function MorpionGame() {
 function WouldYouRather() {
   const { room, username, updateGameState } = useRoom()
   const gs = room?.active_game?.state || {}
+  const mode = room?.active_game?.mode || 'solo'
+  const gameCreator = room?.active_game?.by
+  const iAmCreator = gameCreator === username
+  const canControl = mode === 'solo' || iAmCreator
   const notifiedRef = useRef(false)
 
   const questionIndex = gs.questionIndex ?? null
@@ -905,25 +922,28 @@ function WouldYouRather() {
     updateGameState({ state: { ...gs, revealed: true } })
   }
 
-  if (questionIndex === null) {
+  const q = questionIndex !== null ? WYR_QUESTIONS[questionIndex] : null
+
+  if (!q) {
     return (
       <div className="game-card-wrapper">
-        <div className="game-card idle" onClick={start}>
+        <div className="game-card idle" onClick={canControl ? start : undefined} style={!canControl ? { opacity: 0.6, cursor: 'default' } : {}}>
           <Gamepad2 size={48} />
           <p>Tu Préfères</p>
-          <span>Choisis impossible en couple</span>
+          <span>{canControl ? 'Choix impossibles en couple' : 'Le créateur lancera une question'}</span>
         </div>
       </div>
     )
   }
 
-  const q = WYR_QUESTIONS[questionIndex]
-
   return (
     <>
       <div className="game-card-wrapper">
-        <div className="game-card revealed" style={{ cursor: 'default', maxWidth: 440, flexDirection: 'column' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%' }}>
+        <div className="game-card revealed" style={{ cursor: 'default', maxWidth: 440 }}>
+          <p style={{ fontSize: 13, color: 'var(--muted-foreground)', marginBottom: 12 }}>
+            {revealed ? 'Voici les choix !' : myChoice ? 'Tu as choisi !' : 'Choisis ton option'}
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <button
               className="btn btn-full btn-lg"
               style={{
@@ -957,7 +977,7 @@ function WouldYouRather() {
               ⏳ En attente de {partnerKey?.replace('choice_', '') || 'ton partenaire'}...
             </p>
           )}
-          {bothChose && !revealed && (
+          {bothChose && !revealed && canControl && (
             <button className="btn btn-primary btn-full" style={{ marginTop: 12 }} onClick={showReveal}>
               Voir les choix 🎭
             </button>
@@ -994,16 +1014,18 @@ export default function Games() {
   const [searchParams, setSearchParams] = useSearchParams()
   const urlGame = searchParams.get('game')
   const [active, setActive] = useState(urlGame || null)
+  const [creating, setCreating] = useState(false)
+  const [createMode, setCreateMode] = useState(null)
 
   useEffect(() => {
     if (urlGame && urlGame !== active) setActive(urlGame)
   }, [urlGame])
 
-  function openGame(key) {
+  function openGame(key, mode) {
     setActive(key)
     setSearchParams({ game: key })
     const game = GAMES_LIST.find(g => g.key === key)
-    updateRoom({ active_game: { game: key, by: username, label: game?.label, state: {} } })
+    updateRoom({ active_game: { game: key, by: username, label: game?.label, mode: mode || 'solo', state: {} } })
   }
 
   function closeGame() {
@@ -1021,23 +1043,87 @@ export default function Games() {
     }
   }, [room?.active_game])
 
+  function handleCreateSelect(gameKey) {
+    if (createMode === 'duo' || createMode === 'solo') {
+      openGame(gameKey, createMode)
+      setCreating(false)
+      setCreateMode(null)
+    }
+  }
+
   if (active) {
     const game = GAMES_LIST.find(g => g.key === active)
     const GameComponent = GAME_COMPONENTS[active]
+    const gameMode = room?.active_game?.mode || 'solo'
     return (
       <div className="page games-page">
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
           <button className="btn-icon" onClick={closeGame}>
             <ArrowLeft size={22} />
           </button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
             <div style={{ display: 'inline-flex', padding: 8, borderRadius: 'var(--radius)', background: `${game?.color}18`, color: game?.color }}>
               {game && <game.icon size={20} />}
             </div>
-            <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>{game?.label}</h2>
+            <div>
+              <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>{game?.label}</h2>
+              <p style={{ fontSize: 12, color: 'var(--muted-foreground)', margin: 0 }}>
+                {gameMode === 'solo' ? 'Solo' : 'En couple'} · Créé par {room?.active_game?.by}
+              </p>
+            </div>
           </div>
         </div>
         <GameComponent />
+      </div>
+    )
+  }
+
+  if (creating) {
+    return (
+      <div className="page games-page">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+          <button className="btn-icon" onClick={() => { setCreating(false); setCreateMode(null) }}>
+            <ArrowLeft size={22} />
+          </button>
+          <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>
+            {createMode === 'solo' ? 'Choisir un jeu solo' : 'Choisir un jeu en couple'}
+          </h2>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          {GAMES_LIST.map(game => {
+            const disabled = createMode === 'solo' && !game.solo
+            return (
+              <button
+                key={game.key}
+                onClick={() => !disabled && handleCreateSelect(game.key)}
+                disabled={disabled}
+                style={{
+                  background: 'var(--card)',
+                  borderRadius: 'calc(var(--radius) * 1.5)',
+                  padding: 16,
+                  border: disabled ? '1px solid var(--border)' : '1px solid var(--border)',
+                  cursor: disabled ? 'not-allowed' : 'pointer',
+                  textAlign: 'left',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
+                  transition: 'all 0.2s',
+                  minWidth: 0,
+                  opacity: disabled ? 0.4 : 1,
+                }}
+                onMouseEnter={e => { if (!disabled) { e.currentTarget.style.borderColor = 'rgba(138, 121, 171, 0.3)'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(138, 121, 171, 0.12)' } }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '' }}
+              >
+                <div style={{ display: 'inline-flex', padding: 8, borderRadius: 'var(--radius)', background: `${game.color}15`, color: game.color, alignSelf: 'flex-start' }}>
+                  <game.icon size={22} />
+                </div>
+                <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--foreground)', margin: 0 }}>{game.label}</p>
+                <p style={{ fontSize: 12, color: 'var(--muted-foreground)', lineHeight: 1.3, margin: 0 }}>{game.desc}</p>
+                {disabled && <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: 0, fontStyle: 'italic' }}>Solo uniquement</p>}
+              </button>
+            )
+          })}
+        </div>
       </div>
     )
   }
@@ -1049,17 +1135,25 @@ export default function Games() {
         <h2>Nos Jeux</h2>
       </div>
       {room?.active_game && room.active_game.by !== username && (
-        <div className="active-game-banner" onClick={() => openGame(room.active_game.game)}>
+        <div className="active-game-banner" onClick={() => openGame(room.active_game.game, room.active_game.mode)}>
           <Gamepad2 size={18} />
-          <span><strong>{room.active_game.by}</strong> joue à <strong>{room.active_game.label}</strong></span>
+          <span><strong>{room.active_game.by}</strong> joue à <strong>{room.active_game.label}</strong> ({room.active_game.mode === 'solo' ? 'solo' : 'couple'})</span>
           <span className="active-game-join">Rejoindre →</span>
         </div>
       )}
+      <button
+        onClick={() => setCreating(true)}
+        className="btn btn-primary btn-full btn-lg"
+        style={{ marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+      >
+        <Sparkles size={20} />
+        Créer une partie
+      </button>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         {GAMES_LIST.map(game => (
           <button
             key={game.key}
-            onClick={() => openGame(game.key)}
+            onClick={() => openGame(game.key, 'solo')}
             style={{
               background: 'var(--card)',
               borderRadius: 'calc(var(--radius) * 1.5)',

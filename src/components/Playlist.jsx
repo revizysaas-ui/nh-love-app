@@ -37,7 +37,7 @@ export default function Playlist() {
   const videoRef = useRef(null)
   const ytRef = useRef(null)
   const ytPlayerRef = useRef(null)
-  const ytReadyRef = useRef(false)
+  const [ytReady, setYtReady] = useState(false)
 
   const currentSong = currentIdx >= 0 ? songs[currentIdx] : null
   const currentType = currentSong ? getSongType(currentSong.url) : null
@@ -112,52 +112,44 @@ export default function Playlist() {
     if (currentType !== 'youtube') return
     const vid = extractYouTubeId(currentSong.url)
     if (!vid) return
+    setYtReady(false)
 
-    function onYTReady(event) {
-      ytPlayerRef.current = event.target
-      ytReadyRef.current = true
-      if (playing) event.target.playVideo()
-      else event.target.pauseVideo()
+    function createPlayer() {
+      if (!ytRef.current) return
+      ytPlayerRef.current = new window.YT.Player(ytRef.current, {
+        videoId: vid,
+        playerVars: { modestbranding: 1, rel: 0, iv_load_policy: 3, fs: 0, autoplay: 1, controls: 1 },
+        events: {
+          onReady: (e) => { ytPlayerRef.current = e.target; setYtReady(true) },
+          onStateChange: (e) => { if (e.data === window.YT.PlayerState.ENDED) goNext() },
+        },
+      })
     }
 
     if (window.YT && window.YT.Player) {
-      if (ytRef.current) {
-        ytPlayerRef.current = new window.YT.Player(ytRef.current, {
-          videoId: vid,
-          playerVars: { modestbranding: 1, rel: 0, iv_load_policy: 3, fs: 0, autoplay: 1, controls: 1 },
-          events: { onReady: onYTReady, onStateChange: (e) => { if (e.data === window.YT.PlayerState.ENDED) goNext() } },
-        })
-      }
+      createPlayer()
     } else {
       const tag = document.createElement('script')
       tag.src = 'https://www.youtube.com/iframe_api'
       document.head.appendChild(tag)
-      window.onYouTubeIframeAPIReady = () => {
-        if (ytRef.current) {
-          ytPlayerRef.current = new window.YT.Player(ytRef.current, {
-            videoId: vid,
-            playerVars: { modestbranding: 1, rel: 0, iv_load_policy: 3, fs: 0, autoplay: 1, controls: 1 },
-            events: { onReady: onYTReady, onStateChange: (e) => { if (e.data === window.YT.PlayerState.ENDED) goNext() } },
-          })
-        }
-      }
+      window.onYouTubeIframeAPIReady = createPlayer
     }
 
     return () => {
-      if (ytPlayerRef.current && ytPlayerRef.current.destroy) {
+      setYtReady(false)
+      if (ytPlayerRef.current && typeof ytPlayerRef.current.destroy === 'function') {
         ytPlayerRef.current.destroy()
         ytPlayerRef.current = null
-        ytReadyRef.current = false
       }
     }
   }, [currentType, currentSong?.url])
 
   // YouTube play/pause
   useEffect(() => {
-    if (currentType !== 'youtube' || !ytPlayerRef.current) return
+    if (currentType !== 'youtube' || !ytReady || !ytPlayerRef.current) return
     if (playing) ytPlayerRef.current.playVideo()
     else ytPlayerRef.current.pauseVideo()
-  }, [playing, currentType])
+  }, [playing, currentType, ytReady])
 
   // Audio play/pause
   useEffect(() => {

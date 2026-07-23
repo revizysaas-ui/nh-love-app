@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Music, Plus, Trash2, Play, Pause, ExternalLink } from 'lucide-react'
+import { Music, Plus, Trash2, Play, Pause } from 'lucide-react'
 import ReactAudioPlayer from 'react-h5-audio-player'
 import 'react-h5-audio-player/lib/styles.css'
 import { supabase } from '../lib/supabase'
@@ -156,7 +156,6 @@ export default function Playlist() {
                 <span>{s.title}</span>
                 <small>{s.author} · {new Date(s.created_at).toLocaleDateString('fr-FR')} · {type === 'youtube' ? 'YouTube' : type === 'spotify' ? 'Spotify' : 'Audio'}</small>
               </div>
-              <a href={s.url} target="_blank" rel="noopener noreferrer" className="btn-icon" onClick={e => e.stopPropagation()}><ExternalLink size={16} /></a>
               <button className="btn-icon btn-danger-icon" onClick={e => { e.stopPropagation(); remove(s.id) }}><Trash2 size={14} /></button>
             </div>
           )

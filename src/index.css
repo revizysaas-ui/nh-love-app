@@ -1027,6 +1027,9 @@ body {
   border-radius: calc(var(--radius) * 1.5);
   display: flex; flex-direction: column; gap: 10px;
 }
+.playlist-player-video { overflow: hidden; }
+.video-wrapper { position: relative; width: 100%; padding-top: 56.25%; border-radius: var(--radius); overflow: hidden; background: #000; }
+.video-wrapper iframe, .video-wrapper video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; }
 .player-title { font-size: 14px; font-weight: 600; color: var(--foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nh-audio-player { background: transparent !important; box-shadow: none !important; }
 .nh-audio-player .rhap_container { padding: 0 !important; }

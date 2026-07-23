@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Music, Plus, Trash2, Play, Pause } from 'lucide-react'
+import { Music, Plus, Trash2, Play, Pause, Video } from 'lucide-react'
 import ReactAudioPlayer from 'react-h5-audio-player'
 import 'react-h5-audio-player/lib/styles.css'
 import { supabase } from '../lib/supabase'
@@ -15,9 +15,18 @@ function extractSpotifyId(url) {
   return m ? { type: m[1], id: m[2] } : null
 }
 
+function isVideoFile(url) {
+  return /\.(mp4|webm|mov|avi)(\?|$)/i.test(url)
+}
+
+function isAudioFile(url) {
+  return /\.(mp3|wav|ogg|flac|aac|m4a)(\?|$)/i.test(url)
+}
+
 function getSongType(url) {
   if (extractYouTubeId(url)) return 'youtube'
   if (extractSpotifyId(url)) return 'spotify'
+  if (isVideoFile(url)) return 'video'
   return 'audio'
 }
 
@@ -30,7 +39,8 @@ export default function Playlist() {
   const playerRef = useRef(null)
 
   const currentSong = currentIdx >= 0 ? songs[currentIdx] : null
-  const playableCurrent = currentSong && getSongType(currentSong.url) === 'audio'
+  const currentType = currentSong ? getSongType(currentSong.url) : null
+  const isPlayableAudio = currentType === 'audio' || currentType === 'video'
 
   useEffect(() => {
     if (!room) return
@@ -69,15 +79,82 @@ export default function Playlist() {
   const handleEnded = useCallback(() => {
     if (songs.length === 0) return
     setCurrentIdx(i => {
-      let next = i + 1
-      while (next < songs.length && getSongType(songs[next].url) !== 'audio') next++
-      if (next >= songs.length) {
-        next = 0
-        while (next < i && getSongType(songs[next].url) !== 'audio') next++
-      }
-      return next < songs.length ? next : -1
+      let next = (i + 1) % songs.length
+      return next
     })
-  }, [songs])
+  }, [songs.length])
+
+  function renderPlayer() {
+    if (!currentSong) return null
+
+    if (currentType === 'youtube') {
+      const vid = extractYouTubeId(currentSong.url)
+      return vid ? (
+        <div className="playlist-player playlist-player-video">
+          <span className="player-title">{currentSong.title}</span>
+          <div className="video-wrapper">
+            <iframe
+              src={`https://www.youtube-nocookie.com/embed/${vid}?modestbranding=1&rel=0&iv_load_policy=3&fs=0&enablejsapi=1`}
+              title={currentSong.title}
+              allow="autoplay; encrypted-media; picture-in-picture"
+              allowFullScreen={false}
+            />
+          </div>
+        </div>
+      ) : null
+    }
+
+    if (currentType === 'spotify') {
+      const s = extractSpotifyId(currentSong.url)
+      return s ? (
+        <div className="playlist-player">
+          <span className="player-title">{currentSong.title}</span>
+          <iframe
+            src={`https://open.spotify.com/embed/${s.type}/${s.id}?utm_source=generator&theme=0`}
+            width="100%"
+            height="80"
+            frameBorder="0"
+            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+            loading="lazy"
+            style={{ border: 'none', borderRadius: 'var(--radius)' }}
+          />
+        </div>
+      ) : null
+    }
+
+    if (currentType === 'video') {
+      return (
+        <div className="playlist-player playlist-player-video">
+          <span className="player-title">{currentSong.title}</span>
+          <div className="video-wrapper">
+            <video
+              ref={playerRef}
+              src={currentSong.url}
+              controls
+              autoPlay
+              onEnded={handleEnded}
+              playsInline
+            />
+          </div>
+        </div>
+      )
+    }
+
+    return (
+      <div className="playlist-player">
+        <span className="player-title">{currentSong.title}</span>
+        <ReactAudioPlayer
+          ref={playerRef}
+          src={currentSong.url}
+          autoPlay
+          onEnded={handleEnded}
+          showJumpControls={false}
+          layout="stacked"
+          className="nh-audio-player"
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="page playlist-page">
@@ -85,60 +162,12 @@ export default function Playlist() {
       <div className="wishlist-input" style={{ flexDirection: 'column', gap: 8 }}>
         <input placeholder="Titre de la musique..." value={title} onChange={e => setTitle(e.target.value)} />
         <div style={{ display: 'flex', gap: 8 }}>
-          <input placeholder="Lien YouTube, Spotify ou fichier audio (.mp3, .wav...)" value={url} onChange={e => setUrl(e.target.value)} style={{ flex: 1 }} />
+          <input placeholder="Lien YouTube, Spotify, vidéo ou audio..." value={url} onChange={e => setUrl(e.target.value)} style={{ flex: 1 }} />
           <button className="btn btn-sm" onClick={add} disabled={!url.trim()}><Plus size={16} /></button>
         </div>
       </div>
 
-      {currentSong && getSongType(currentSong.url) === 'youtube' && (() => {
-        const vid = extractYouTubeId(currentSong.url)
-        return vid ? (
-          <div className="playlist-player">
-            <span className="player-title">{currentSong.title}</span>
-            <iframe
-              width="100%"
-              height="80"
-              src={`https://www.youtube.com/embed/${vid}?enablejsapi=1`}
-              title={currentSong.title}
-              allow="autoplay; encrypted-media"
-              style={{ border: 'none', borderRadius: 'var(--radius)' }}
-            />
-          </div>
-        ) : null
-      })()}
-
-      {currentSong && getSongType(currentSong.url) === 'spotify' && (() => {
-        const s = extractSpotifyId(currentSong.url)
-        return s ? (
-          <div className="playlist-player">
-            <span className="player-title">{currentSong.title}</span>
-            <iframe
-              src={`https://open.spotify.com/embed/${s.type}/${s.id}?utm_source=generator&theme=0`}
-              width="100%"
-              height="80"
-              frameBorder="0"
-              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-              loading="lazy"
-              style={{ border: 'none', borderRadius: 'var(--radius)' }}
-            />
-          </div>
-        ) : null
-      })()}
-
-      {playableCurrent && (
-        <div className="playlist-player">
-          <span className="player-title">{currentSong.title}</span>
-          <ReactAudioPlayer
-            ref={playerRef}
-            src={currentSong.url}
-            autoPlay
-            onEnded={handleEnded}
-            showJumpControls={false}
-            layout="stacked"
-            className="nh-audio-player"
-          />
-        </div>
-      )}
+      {renderPlayer()}
 
       <div className="playlist-list">
         {songs.length === 0 && <p className="empty-text">Aucune musique partagée</p>}
@@ -149,12 +178,14 @@ export default function Playlist() {
             <div key={s.id} className={`playlist-item ${isActive ? 'playlist-item-active' : ''}`} role="button" tabIndex={0} onClick={(e) => { e.preventDefault(); e.stopPropagation(); playSong(idx) }} onKeyDown={(e) => { if (e.key === 'Enter') playSong(idx) }}>
               {isActive ? (
                 <Pause size={18} className="playlist-play-icon" />
+              ) : type === 'video' ? (
+                <Video size={18} className="playlist-play-icon" />
               ) : (
                 <Play size={18} className="playlist-play-icon" />
               )}
               <div className="playlist-body">
                 <span>{s.title}</span>
-                <small>{s.author} · {new Date(s.created_at).toLocaleDateString('fr-FR')} · {type === 'youtube' ? 'YouTube' : type === 'spotify' ? 'Spotify' : 'Audio'}</small>
+                <small>{s.author} · {new Date(s.created_at).toLocaleDateString('fr-FR')} · {type === 'youtube' ? 'YouTube' : type === 'spotify' ? 'Spotify' : type === 'video' ? 'Vidéo' : 'Audio'}</small>
               </div>
               <button className="btn-icon btn-danger-icon" onClick={e => { e.stopPropagation(); remove(s.id) }}><Trash2 size={14} /></button>
             </div>

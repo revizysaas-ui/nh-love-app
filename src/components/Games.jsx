@@ -44,7 +44,7 @@ const ROULETTE_COLORS = ['#8a79ab', '#e8b4c8', '#c4a8d8', '#b8a5d4', '#d47a9e', 
 function TruthOrDare() {
   const { room, username, updateGameState } = useRoom()
   const gs = room?.active_game?.state || {}
-  const canPlay = room?.active_game?.mode === 'duo' || room?.active_game?.by === username
+  const canPlay = (room?.active_game?.mode === 'solo' && room?.active_game?.by === username) || (room?.active_game?.mode === 'duo' && room?.active_game?.status === 'playing')
 
   const [questions, setQuestions] = useState([])
   const [loading, setLoading] = useState(true)
@@ -430,7 +430,7 @@ function DailyGame() {
 function DefisGame() {
   const { room, username, updateGameState } = useRoom()
   const gs = room?.active_game?.state || {}
-  const canPlay = room?.active_game?.mode === 'duo' || room?.active_game?.by === username
+  const canPlay = (room?.active_game?.mode === 'solo' && room?.active_game?.by === username) || (room?.active_game?.mode === 'duo' && room?.active_game?.status === 'playing')
   const fileRef = useRef(null)
   const notifiedRef = useRef(false)
 
@@ -623,7 +623,7 @@ function CultureGame() {
 function RoueGame() {
   const { room, username, updateGameState } = useRoom()
   const gs = room?.active_game?.state || {}
-  const canPlay = room?.active_game?.mode === 'duo' || room?.active_game?.by === username
+  const canPlay = (room?.active_game?.mode === 'solo' && room?.active_game?.by === username) || (room?.active_game?.mode === 'duo' && room?.active_game?.status === 'playing')
 
   const choices = gs.choices || ['Film', 'Resto', 'Balade', 'Jeu', 'Série', 'Cuisine']
   const result = gs.result || null
@@ -725,7 +725,7 @@ function calculateMorpionWinner(squares) {
 
 function MorpionGame() {
   const { room, username } = useRoom()
-  const canPlay = room?.active_game?.mode === 'duo' || room?.active_game?.by === username
+  const canPlay = (room?.active_game?.mode === 'solo' && room?.active_game?.by === username) || (room?.active_game?.mode === 'duo' && room?.active_game?.status === 'playing')
   const [board, setBoard] = useState(Array(9).fill(null))
   const [xIsNext, setXIsNext] = useState(true)
   const [winner, setWinner] = useState(null)
@@ -871,7 +871,7 @@ function MorpionGame() {
 function WouldYouRather() {
   const { room, username, updateGameState } = useRoom()
   const gs = room?.active_game?.state || {}
-  const canPlay = room?.active_game?.mode === 'duo' || room?.active_game?.by === username
+  const canPlay = (room?.active_game?.mode === 'solo' && room?.active_game?.by === username) || (room?.active_game?.mode === 'duo' && room?.active_game?.status === 'playing')
   const notifiedRef = useRef(false)
 
   const questionIndex = gs.questionIndex ?? null
@@ -1011,7 +1011,16 @@ export default function Games() {
     setActive(key)
     setSearchParams({ game: key })
     const game = GAMES_LIST.find(g => g.key === key)
-    updateRoom({ active_game: { game: key, by: username, label: game?.label, mode: mode || 'solo', state: {} } })
+    if (mode === 'duo') {
+      updateRoom({ active_game: { game: key, by: username, label: game?.label, mode: 'duo', status: 'waiting', state: {} } })
+      notify(room.id, 'game', `t'invite à jouer à ${game?.label} 💕`, username)
+    } else {
+      updateRoom({ active_game: { game: key, by: username, label: game?.label, mode: 'solo', state: {} } })
+    }
+  }
+
+  function joinGame() {
+    updateRoom({ active_game: { ...room.active_game, status: 'playing', joinedBy: username } })
   }
 
   function closeGame() {
@@ -1034,6 +1043,71 @@ export default function Games() {
     const game = GAMES_LIST.find(g => g.key === active)
     const GameComponent = GAME_COMPONENTS[active]
     const gameMode = room?.active_game?.mode || 'solo'
+    const gameStatus = room?.active_game?.status || 'playing'
+    const iAmCreator = room?.active_game?.by === username
+    const isDuoWaiting = gameMode === 'duo' && gameStatus === 'waiting'
+
+    if (isDuoWaiting && !iAmCreator) {
+      return (
+        <div className="page games-page">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+            <button className="btn-icon" onClick={closeGame}>
+              <ArrowLeft size={22} />
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
+              <div style={{ display: 'inline-flex', padding: 8, borderRadius: 'var(--radius)', background: `${game?.color}18`, color: game?.color }}>
+                {game && <game.icon size={20} />}
+              </div>
+              <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>{game?.label}</h2>
+            </div>
+          </div>
+          <div className="game-card-wrapper">
+            <div className="game-card revealed" style={{ cursor: 'default', maxWidth: 400 }}>
+              <Heart size={48} style={{ color: 'var(--primary)' }} />
+              <p style={{ marginTop: 16, fontSize: 18, fontWeight: 600, textAlign: 'center' }}>
+                {room?.active_game?.by} t&apos;invite à jouer !
+              </p>
+              <p style={{ color: 'var(--muted-foreground)', marginTop: 8, textAlign: 'center', fontSize: 14 }}>
+                {game?.label} · En couple
+              </p>
+              <button className="btn btn-primary btn-lg" style={{ marginTop: 20, display: 'flex', alignItems: 'center', gap: 8 }} onClick={joinGame}>
+                Rejoindre la partie 💕
+              </button>
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    if (isDuoWaiting && iAmCreator) {
+      return (
+        <div className="page games-page">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+            <button className="btn-icon" onClick={closeGame}>
+              <ArrowLeft size={22} />
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
+              <div style={{ display: 'inline-flex', padding: 8, borderRadius: 'var(--radius)', background: `${game?.color}18`, color: game?.color }}>
+                {game && <game.icon size={20} />}
+              </div>
+              <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>{game?.label}</h2>
+            </div>
+          </div>
+          <div className="game-card-wrapper">
+            <div className="game-card revealed" style={{ cursor: 'default', maxWidth: 400 }}>
+              <div className="spinner" style={{ width: 40, height: 40 }} />
+              <p style={{ marginTop: 16, fontSize: 18, fontWeight: 600, textAlign: 'center' }}>
+                En attente de ton partenaire...
+              </p>
+              <p style={{ color: 'var(--muted-foreground)', marginTop: 8, textAlign: 'center', fontSize: 14 }}>
+                Ton partenaire sera notifié pour rejoindre la partie
+              </p>
+            </div>
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div className="page games-page">
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
@@ -1145,6 +1219,21 @@ export default function Games() {
         <Sparkles size={20} />
         Créer une partie
       </button>
+      {room?.active_game && room.active_game.mode === 'duo' && room.active_game.status === 'waiting' && room.active_game.by !== username && (
+        <div
+          onClick={() => { setActive(room.active_game.game); setSearchParams({ game: room.active_game.game }) }}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 10, padding: 14, marginBottom: 20,
+            background: 'linear-gradient(135deg, rgba(231,76,139,0.1), rgba(138,121,171,0.1))',
+            border: '1.5px solid rgba(231,76,139,0.3)', borderRadius: 'calc(var(--radius) * 1.5)',
+            cursor: 'pointer', transition: 'all 0.2s', fontSize: 14, color: 'var(--foreground)',
+          }}
+        >
+          <Heart size={18} style={{ color: '#e74c8b' }} />
+          <span><strong>{room.active_game.by}</strong> t&apos;invite à jouer à <strong>{room.active_game.label}</strong></span>
+          <span style={{ marginLeft: 'auto', fontWeight: 700, fontSize: 13, color: '#e74c8b' }}>Rejoindre →</span>
+        </div>
+      )}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         {GAMES_LIST.map(game => (
           <button

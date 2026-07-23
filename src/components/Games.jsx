@@ -1028,11 +1028,41 @@ export default function Games() {
     )
   }
 
-  if (creating) {
+  if (creating && !createMode) {
     return (
       <div className="page games-page">
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-          <button className="btn-icon" onClick={() => { setCreating(false); setCreateMode(null) }}>
+          <button className="btn-icon" onClick={() => setCreating(false)}>
+            <ArrowLeft size={22} />
+          </button>
+          <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Créer une partie</h2>
+        </div>
+        <p style={{ textAlign: 'center', color: 'var(--muted-foreground)', marginBottom: 24, fontSize: 14 }}>Comment veux-tu jouer ?</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <button
+            onClick={() => setCreateMode('solo')}
+            className="btn btn-full btn-lg"
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '20px 16px', background: 'var(--card)', border: '1.5px solid var(--border)', color: 'var(--foreground)' }}
+          >
+            <User size={22} /> Solo
+          </button>
+          <button
+            onClick={() => setCreateMode('duo')}
+            className="btn btn-full btn-lg"
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '20px 16px', background: 'var(--card)', border: '1.5px solid var(--border)', color: 'var(--foreground)' }}
+          >
+            <Users size={22} /> En couple
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (creating && createMode) {
+    return (
+      <div className="page games-page">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+          <button className="btn-icon" onClick={() => setCreateMode(null)}>
             <ArrowLeft size={22} />
           </button>
           <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>

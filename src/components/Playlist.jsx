@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Music, Plus, Trash2, Play, Pause, Video, Shuffle, Repeat, Repeat1, SkipBack, SkipForward } from 'lucide-react'
-import ReactPlayer from 'react-player'
 import { supabase } from '../lib/supabase'
 import { useRoom } from '../context/RoomContext'
 
@@ -15,6 +14,16 @@ function getSongType(url) {
   return 'audio'
 }
 
+function extractYouTubeId(url) {
+  const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([^&?#]+)/)
+  return m ? m[1] : null
+}
+
+function extractSpotifyId(url) {
+  const m = url.match(/spotify\.com\/(track|playlist|album)\/([a-zA-Z0-9]+)/)
+  return m ? { type: m[1], id: m[2] } : null
+}
+
 export default function Playlist() {
   const { room, username } = useRoom()
   const [songs, setSongs] = useState([])
@@ -24,9 +33,11 @@ export default function Playlist() {
   const [playing, setPlaying] = useState(false)
   const [shuffle, setShuffle] = useState(false)
   const [repeatMode, setRepeatMode] = useState('none')
-  const [playerKey, setPlayerKey] = useState(0)
   const audioRef = useRef(null)
   const videoRef = useRef(null)
+  const ytRef = useRef(null)
+  const ytPlayerRef = useRef(null)
+  const ytReadyRef = useRef(false)
 
   const currentSong = currentIdx >= 0 ? songs[currentIdx] : null
   const currentType = currentSong ? getSongType(currentSong.url) : null
@@ -78,7 +89,6 @@ export default function Playlist() {
     if (next === -1) { setPlaying(false); return }
     setCurrentIdx(next)
     setPlaying(true)
-    setPlayerKey(k => k + 1)
   }, [currentIdx, getNextIdx])
 
   const goPrev = useCallback(() => {
@@ -86,7 +96,6 @@ export default function Playlist() {
     const prev = currentIdx <= 0 ? songs.length - 1 : currentIdx - 1
     setCurrentIdx(prev)
     setPlaying(true)
-    setPlayerKey(k => k + 1)
   }, [currentIdx, songs.length])
 
   const playSong = useCallback((idx) => {
@@ -96,20 +105,75 @@ export default function Playlist() {
     }
     setCurrentIdx(idx)
     setPlaying(true)
-    setPlayerKey(k => k + 1)
   }, [currentIdx])
 
+  // YouTube IFrame API
   useEffect(() => {
-    const el = currentType === 'audio' ? audioRef.current : currentType === 'video' ? videoRef.current : null
-    if (!el) return
-    let cancelled = false
-    if (playing) {
-      el.play().catch(e => { if (!cancelled && e.name !== 'AbortError') console.warn(e) })
-    } else {
-      el.pause()
+    if (currentType !== 'youtube') return
+    const vid = extractYouTubeId(currentSong.url)
+    if (!vid) return
+
+    function onYTReady(event) {
+      ytPlayerRef.current = event.target
+      ytReadyRef.current = true
+      if (playing) event.target.playVideo()
+      else event.target.pauseVideo()
     }
-    return () => { cancelled = true }
-  }, [playing, currentIdx, currentType])
+
+    if (window.YT && window.YT.Player) {
+      if (ytRef.current) {
+        ytPlayerRef.current = new window.YT.Player(ytRef.current, {
+          videoId: vid,
+          playerVars: { modestbranding: 1, rel: 0, iv_load_policy: 3, fs: 0, autoplay: 1, controls: 1 },
+          events: { onReady: onYTReady, onStateChange: (e) => { if (e.data === window.YT.PlayerState.ENDED) goNext() } },
+        })
+      }
+    } else {
+      const tag = document.createElement('script')
+      tag.src = 'https://www.youtube.com/iframe_api'
+      document.head.appendChild(tag)
+      window.onYouTubeIframeAPIReady = () => {
+        if (ytRef.current) {
+          ytPlayerRef.current = new window.YT.Player(ytRef.current, {
+            videoId: vid,
+            playerVars: { modestbranding: 1, rel: 0, iv_load_policy: 3, fs: 0, autoplay: 1, controls: 1 },
+            events: { onReady: onYTReady, onStateChange: (e) => { if (e.data === window.YT.PlayerState.ENDED) goNext() } },
+          })
+        }
+      }
+    }
+
+    return () => {
+      if (ytPlayerRef.current && ytPlayerRef.current.destroy) {
+        ytPlayerRef.current.destroy()
+        ytPlayerRef.current = null
+        ytReadyRef.current = false
+      }
+    }
+  }, [currentType, currentSong?.url])
+
+  // YouTube play/pause
+  useEffect(() => {
+    if (currentType !== 'youtube' || !ytPlayerRef.current) return
+    if (playing) ytPlayerRef.current.playVideo()
+    else ytPlayerRef.current.pauseVideo()
+  }, [playing, currentType])
+
+  // Audio play/pause
+  useEffect(() => {
+    const el = audioRef.current
+    if (!el || currentType !== 'audio') return
+    if (playing) el.play().catch(() => {})
+    else el.pause()
+  }, [playing, currentType])
+
+  // Video play/pause
+  useEffect(() => {
+    const el = videoRef.current
+    if (!el || currentType !== 'video') return
+    if (playing) el.play().catch(() => {})
+    else el.pause()
+  }, [playing, currentType])
 
   function renderPlayer() {
     if (!currentSong) return null
@@ -120,64 +184,34 @@ export default function Playlist() {
 
         {currentType === 'youtube' && (
           <div className="video-wrapper">
-            <ReactPlayer
-              key={playerKey}
-              url={currentSong.url}
-              playing={playing}
-              onEnded={goNext}
-              onPlay={() => setPlaying(true)}
-              onPause={() => setPlaying(false)}
-              onError={() => {}}
-              width="100%"
-              height="100%"
-              style={{ position: 'absolute', top: 0, left: 0 }}
-              config={{ youtube: { playerVars: { modestbranding: 1, rel: 0, iv_load_policy: 3, fs: 0, autoplay: 1 } } }}
-            />
+            <div ref={ytRef} />
           </div>
         )}
 
-        {currentType === 'spotify' && (
-          <ReactPlayer
-            key={playerKey}
-            url={currentSong.url}
-            playing={playing}
-            onEnded={goNext}
-            onPlay={() => setPlaying(true)}
-            onPause={() => setPlaying(false)}
-            onError={() => {}}
-            width="100%"
-            height="80"
-            config={{ spotify: { width: '100%', height: '80' } }}
-          />
-        )}
+        {currentType === 'spotify' && (() => {
+          const s = extractSpotifyId(currentSong.url)
+          return s ? (
+            <iframe
+              src={`https://open.spotify.com/embed/${s.type}/${s.id}?utm_source=generator&theme=0`}
+              width="100%"
+              height="80"
+              frameBorder="0"
+              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+              loading="lazy"
+              style={{ border: 'none', borderRadius: 'var(--radius)' }}
+            />
+          ) : null
+        })()}
 
         {currentType === 'video' && (
           <div className="video-wrapper">
-            <video
-              ref={videoRef}
-              key={playerKey}
-              src={currentSong.url}
-              controls
-              playsInline
-              onEnded={goNext}
-              onPause={() => setPlaying(false)}
-              onPlay={() => setPlaying(true)}
-            />
+            <video ref={videoRef} src={currentSong.url} controls playsInline />
           </div>
         )}
 
         {currentType === 'audio' && (
           <div className="playlist-audio-player">
-            <audio
-              ref={audioRef}
-              key={playerKey}
-              src={currentSong.url}
-              controls
-              onEnded={goNext}
-              onPause={() => setPlaying(false)}
-              onPlay={() => setPlaying(true)}
-              style={{ width: '100%' }}
-            />
+            <audio ref={audioRef} src={currentSong.url} controls />
           </div>
         )}
 

@@ -1,4 +1,4 @@
-import { useEffect, lazy, useState } from 'react'
+import { useEffect, lazy, useState, useRef } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { RoomProvider, useRoom } from './context/RoomContext'
 import { NotificationProvider, useNotifications } from './context/NotificationContext'
@@ -59,6 +59,30 @@ function AppRoutes() {
   )
 }
 
+const hasNotification = typeof Notification !== 'undefined'
+
+function GameInviteWatcher() {
+  const { room, username } = useRoom()
+  const { showToast } = useNotifications()
+  const prevRef = useRef(null)
+
+  useEffect(() => {
+    const g = room?.active_game
+    const isInvite = g && g.mode === 'duo' && g.status === 'waiting' && g.by !== username
+    const sig = isInvite ? `${g.by}|${g.game}|${g.status}` : null
+
+    if (sig && sig !== prevRef.current) {
+      showToast('game', `t'invite à jouer à ${g.label} 💕`, g.by)
+      if (hasNotification && Notification.permission === 'granted' && document.hidden) {
+        new Notification('N&H - ' + g.by, { body: `t'invite à jouer à ${g.label} 💕`, icon: '/icon-192.svg' })
+      }
+    }
+    prevRef.current = sig
+  }, [room?.active_game, username])
+
+  return null
+}
+
 function AppShell() {
   const { room } = useRoom()
   const [locked, setLocked] = useState(() => !!room?.app_lock)
@@ -95,6 +119,7 @@ export default function App() {
       <RoomProvider>
         <NotificationProvider>
           <ToastProvider>
+            <GameInviteWatcher />
             <AppShell />
           </ToastProvider>
         </NotificationProvider>

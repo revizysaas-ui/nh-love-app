@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { useRoom } from '../context/RoomContext'
 import { useToast } from '../context/ToastContext'
 import { notify } from '../lib/notify'
+import { compressImage } from '../lib/image'
 
 const EMOJIS = ['❤️', '😘', '🥰', '💕', '💗', '🫶', '💋', '🌙', '✨', '🎉']
 
@@ -165,12 +166,17 @@ export default function Messages() {
   async function handleBgUpload(e) {
     const file = e.target.files?.[0]
     if (!file) return
+    setShowBgMenu(false)
+    showToast('Envoi de la photo...')
+    const blob = await compressImage(file, 1600, 0.8)
     const path = `${room.id}/chat-bg-${Date.now()}`
-    const { error: uploadError } = await supabase.storage.from('photos').upload(path, file)
+    const { error: uploadError } = await supabase.storage.from('photos').upload(path, blob, {
+      contentType: 'image/jpeg',
+      cacheControl: '31536000',
+    })
     if (uploadError) { showToast('Impossible de charger la photo 😕'); return }
     const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(path)
     await updateRoom({ chat_bg: publicUrl })
-    setShowBgMenu(false)
     showToast('Fond mis à jour 💜')
     bgFileRef.current.value = ''
   }

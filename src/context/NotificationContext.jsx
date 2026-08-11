@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { X, Heart, MessageCircle, Camera, PenLine } from 'lucide-react'
+import { X, Heart, MessageCircle, Camera, PenLine, Gamepad2, Target, HelpCircle } from 'lucide-react'
 
 const NotificationContext = createContext(null)
 
@@ -8,12 +9,16 @@ const ICONS = {
   message: MessageCircle,
   photo: Camera,
   drawing: PenLine,
+  game: Gamepad2,
+  defi: Target,
+  quiz: HelpCircle,
   default: Heart,
 }
 
 const hasNotification = typeof Notification !== 'undefined'
 
 export function NotificationProvider({ children }) {
+  const navigate = useNavigate()
   const [toasts, setToasts] = useState([])
   const [roomId, setRoomId] = useState(null)
 
@@ -58,13 +63,20 @@ export function NotificationProvider({ children }) {
         {toasts.map(t => {
           const Icon = ICONS[t.type] || ICONS.default
           return (
-            <div key={t.id} className="toast">
+            <div
+              key={t.id}
+              className={`toast ${t.type === 'game' || t.type === 'defi' ? 'toast-game' : ''}`}
+              onClick={() => {
+                if (t.type === 'game' || t.type === 'defi' || t.type === 'quiz') navigate('/jeux')
+                dismissToast(t.id)
+              }}
+            >
               <Icon size={18} />
               <div className="toast-body">
                 <strong>{t.author}</strong>
                 <span>{t.message}</span>
               </div>
-              <button className="toast-close" onClick={() => dismissToast(t.id)}>
+              <button className="toast-close" onClick={(e) => { e.stopPropagation(); dismissToast(t.id) }}>
                 <X size={14} />
               </button>
             </div>

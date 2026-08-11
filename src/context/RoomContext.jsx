@@ -84,7 +84,16 @@ export function RoomProvider({ children }) {
         if (payload.new) setRoom(prev => ({ ...prev, ...payload.new }))
       })
       .subscribe()
-    return () => supabase.removeChannel(sub)
+
+    const pollId = setInterval(async () => {
+      const { data } = await supabase.from('rooms').select('*').eq('id', saved).single()
+      if (data) setRoom(prev => (prev && JSON.stringify(prev) === JSON.stringify(data) ? prev : data))
+    }, 4000)
+
+    return () => {
+      supabase.removeChannel(sub)
+      clearInterval(pollId)
+    }
   }, [])
 
   const createRoom = useCallback(async (name) => {
@@ -149,8 +158,9 @@ export function RoomProvider({ children }) {
   const updateGameState = useCallback(async (gameState) => {
     const current = roomRef.current
     if (!current) return
-    const cur = current.active_game || {}
-    const merged = { ...cur, ...gameState }
+    const fresh = await supabase.from('rooms').select('active_game').eq('id', current.id).single()
+    const base = fresh?.data?.active_game || {}
+    const merged = { ...base, ...gameState }
     const payload = Object.keys(merged).length === 0 || (Object.keys(merged).length === 1 && merged.game === undefined) ? null : merged
     const { data } = await supabase.from('rooms').update({ active_game: payload }).eq('id', current.id).select().single()
     if (data) setRoom(data)

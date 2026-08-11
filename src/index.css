@@ -1634,7 +1634,7 @@ body {
 .applock-key-del:active { background: var(--destructive); color: white; }
 
 /* ========== TOAST ========== */
-.toast {
+.app-toast {
   position: fixed; bottom: 110px; left: 50%; transform: translateX(-50%);
   z-index: 300; background: var(--card); color: var(--foreground);
   border: 1px solid var(--border); border-radius: 999px;
@@ -1642,6 +1642,11 @@ body {
   box-shadow: 0 4px 24px rgba(0,0,0,0.25);
   animation: toast-in 0.25s ease;
   max-width: 85vw; text-align: center;
+}
+.toast-game {
+  background: linear-gradient(135deg, rgba(231, 76, 139, 0.12), rgba(138, 121, 171, 0.12)) !important;
+  border-color: rgba(231, 76, 139, 0.35) !important;
+  cursor: pointer;
 }
 @keyframes toast-in {
   from { opacity: 0; transform: translate(-50%, 8px); }

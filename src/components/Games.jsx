@@ -742,7 +742,7 @@ function MorpionGame() {
     loadGame()
     const sub = supabase
       .channel('morpion-' + room.id)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'game_morpion', filter: `room_id=eq.${room.id}` }, (payload) => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'game_morpion', filter: `room_id=eq.${room.id}` }, (payload) => {
         if (payload.new) {
           const newBoard = Array.isArray(payload.new.board) ? payload.new.board : (typeof payload.new.board === 'string' ? JSON.parse(payload.new.board) : Array(9).fill(null))
           setBoard(newBoard)

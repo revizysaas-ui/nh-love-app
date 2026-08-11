@@ -1,22 +1,29 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { Settings, Sun, Moon, LogOut, Heart } from 'lucide-react'
+import { Settings, Sun, Moon, Lock, Heart } from 'lucide-react'
 import { useState, useEffect, Suspense } from 'react'
 import { useRoom } from '../context/RoomContext'
 import ExpandableTabs from './ui/ExpandableTabs'
 
 export default function Layout() {
-  const { room, leaveRoom } = useRoom()
+  const { room } = useRoom()
   const [dark, setDark] = useState(() => localStorage.getItem('nh_dark') === 'true')
   useEffect(() => {
     document.body.classList.toggle('dark', dark)
     localStorage.setItem('nh_dark', dark)
   }, [dark])
 
+  const hasLock = !!room?.app_lock
+
   return (
     <div className="app-layout">
       <header className="app-header">
-        <Heart size={20} className="header-heart" fill="currentColor" />
-        <span className="app-title">{room?.name1 || 'N'}&{room?.name2 || 'H'}</span>
+        <button className="header-theme" onClick={() => setDark(!dark)} title={dark ? 'Mode clair' : 'Mode sombre'}>
+          {dark ? <Sun size={20} /> : <Moon size={20} />}
+        </button>
+        <span className="header-brand">
+          <Heart size={18} className="header-heart" fill="currentColor" />
+          <span className="app-title">{room?.name1 || 'N'}&{room?.name2 || 'H'}</span>
+        </span>
         <NavLink to="/parametres" className="header-settings">
           <Settings size={20} />
         </NavLink>
@@ -29,16 +36,17 @@ export default function Layout() {
       </main>
 
       <div className="bottom-nav-blur">
-        <div className="bottom-actions">
-          <button className="bottom-action-btn" onClick={() => setDark(!dark)} title={dark ? 'Mode clair' : 'Mode sombre'}>
-            {dark ? <Sun size={22} /> : <Moon size={22} />}
-          </button>
-        </div>
-        <ExpandableTabs />
-        <div className="bottom-actions right">
-          <button className="bottom-action-btn" onClick={leaveRoom} title="Changer d'espace">
-            <LogOut size={22} />
-          </button>
+        <div className="nav-pill">
+          <ExpandableTabs />
+          {hasLock && (
+            <button
+              className="nav-lock"
+              onClick={() => window.dispatchEvent(new Event('nh-lock-app'))}
+              title="Verrouiller"
+            >
+              <Lock size={16} />
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Settings as SettingsIcon, Heart, MapPin, Calendar, Save, Copy, Check, Search, Loader, Shield, Lock, Smartphone, Ruler, Vibrate } from 'lucide-react'
+import { Settings as SettingsIcon, Heart, MapPin, Calendar, Save, Copy, Check, Search, Loader, Shield, Lock, Smartphone, Ruler, Vibrate, LogOut } from 'lucide-react'
 import { useRoom } from '../context/RoomContext'
 import { useToast } from '../context/ToastContext'
 import { hashPin } from '../lib/crypto'
@@ -28,7 +28,7 @@ function Toggle({ checked, onChange }) {
 }
 
 export default function Settings() {
-  const { room, updateRoom, setRoomPassword, setAppLock } = useRoom()
+  const { room, updateRoom, setRoomPassword, setAppLock, leaveRoom } = useRoom()
   const { showToast } = useToast()
   const [form, setForm] = useState(room || {})
   const [saved, setSaved] = useState(false)
@@ -298,6 +298,11 @@ export default function Settings() {
       <button className="btn btn-primary btn-full btn-lg" onClick={handleSave}>
         <Save size={20} />
         {saved ? 'Enregistré !' : 'Enregistrer'}
+      </button>
+
+      <button className="btn btn-secondary btn-full" onClick={leaveRoom} style={{ marginTop: 8 }}>
+        <LogOut size={20} />
+        Changer d'espace
       </button>
     </div>
   )

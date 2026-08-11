@@ -188,8 +188,29 @@ body {
 .app-header .header-heart {
   color: var(--romantic);
   animation: heartPulse 2s ease-in-out infinite;
-  margin-right: 8px;
   flex-shrink: 0;
+}
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.header-theme {
+  position: absolute;
+  left: 16px;
+  color: var(--muted-foreground);
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.header-theme:hover {
+  background: var(--secondary);
+  color: var(--primary);
 }
 .app-title {
   font-size: 18px;
@@ -215,66 +236,40 @@ body {
   color: var(--primary);
 }
 
-/* ========== BOTTOM NAV BLUR ========== */
+/* ========== BOTTOM NAV (pilule flottante) ========== */
 .bottom-nav-blur {
   position: fixed;
-  bottom: 0;
+  bottom: 16px;
   left: 0;
   right: 0;
   z-index: 100;
   display: flex;
+  justify-content: center;
+  padding: 0 16px;
+  pointer-events: none;
+}
+.nav-pill {
+  pointer-events: auto;
+  display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 10px 16px;
-  padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
-  background: rgba(255, 255, 255, 0.92);
+  gap: 6px;
+  max-width: 100%;
+  padding: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border-top: 1px solid var(--border);
-  box-shadow: 0 -4px 20px rgba(138, 121, 171, 0.08);
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 32px rgba(138, 121, 171, 0.18);
 }
-.dark .bottom-nav-blur {
+.dark .nav-pill {
   background: rgba(15, 10, 26, 0.88);
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
 }
-.bottom-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.bottom-actions.right {
-  margin-left: auto;
-}
-.bottom-action-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  border: none;
-  border-radius: var(--radius);
-  background: transparent;
-  color: var(--muted-foreground);
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  flex-shrink: 0;
-}
-.bottom-action-btn:hover {
-  background: var(--secondary);
-  color: var(--primary);
-}
-.bottom-action-btn:active {
-  transform: scale(0.92);
-}
-
 .expandable-tabs {
   display: flex;
   align-items: center;
-  gap: 3px;
-  border-radius: var(--radius);
-  background: var(--secondary);
-  padding: 4px;
+  gap: 2px;
   flex: 1;
   min-width: 0;
   overflow-x: auto;
@@ -282,20 +277,15 @@ body {
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
 }
-@media (min-width: 768px) {
-  .expandable-tabs { justify-content: center; }
-}
 .expandable-tabs::-webkit-scrollbar { display: none; }
-
 .expandable-tab {
-  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: calc(var(--radius) - 2px);
-  padding: 8px 10px;
+  border-radius: 999px;
+  padding: 8px 11px;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   border: none;
   cursor: pointer;
@@ -305,11 +295,11 @@ body {
   white-space: nowrap;
 }
 .expandable-tab.selected {
-  background: var(--card);
-  color: var(--primary);
-  box-shadow: 0 1px 4px rgba(138, 121, 171, 0.12);
-  padding-left: 14px;
-  padding-right: 14px;
+  background: rgba(139, 92, 246, 0.16);
+  color: var(--foreground);
+}
+.dark .expandable-tab.selected {
+  background: rgba(255, 255, 255, 0.14);
 }
 .expandable-tab:hover:not(.selected) {
   color: var(--foreground);
@@ -319,6 +309,24 @@ body {
   white-space: nowrap;
   font-size: 13px;
   font-weight: 600;
+}
+.nav-lock {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  border: none;
+  background: linear-gradient(135deg, #fcd34d, #f59e0b);
+  color: #78350f;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 10px rgba(245, 158, 11, 0.35);
+}
+.nav-lock:active {
+  transform: scale(0.9);
 }
 
 /* ========== MAIN ========== */
@@ -1500,10 +1508,10 @@ body {
   .settings-card h3 { font-size: 15px; }
   .field input, .field select { font-size: 16px; padding: 10px 12px; }
   .expandable-tab { padding: 8px 10px; font-size: 13px; }
-  .expandable-tab.selected { padding-left: 12px; padding-right: 12px; }
-  .expandable-tabs { gap: 3px; padding: 3px; }
-  .bottom-nav-blur { padding: 8px 12px; gap: 6px; }
-  .bottom-action-btn { width: 40px; height: 40px; }
+  .expandable-tabs { gap: 2px; }
+  .nav-pill { padding: 5px; gap: 4px; }
+  .nav-lock { width: 36px; height: 36px; }
+  .bottom-nav-blur { bottom: 10px; padding: 0 12px; }
   .game-card { min-height: 140px; padding: 16px 12px; }
   .game-question { font-size: 16px; }
   .modal-card { padding: 12px; }
@@ -1544,16 +1552,6 @@ body {
 .applock-key:active { background: var(--primary); color: var(--primary-foreground); transform: scale(0.92); }
 .applock-key-del { background: transparent; border-color: transparent; }
 .applock-key-del:active { background: var(--destructive); color: white; }
-.app-lock-fab {
-  position: fixed; bottom: 80px; right: 16px; z-index: 100;
-  width: 44px; height: 44px; border-radius: 50%;
-  background: var(--card); border: 1px solid var(--border);
-  font-size: 18px; cursor: pointer;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
-  display: flex; align-items: center; justify-content: center;
-  transition: all 0.2s;
-}
-.app-lock-fab:active { transform: scale(0.9); }
 
 /* ========== TOAST ========== */
 .toast {

@@ -68,20 +68,17 @@ function AppShell() {
     if (room && room.app_lock) setLocked(true)
   }, [room?.app_lock])
 
+  useEffect(() => {
+    const handler = () => setLocked(true)
+    window.addEventListener('nh-lock-app', handler)
+    return () => window.removeEventListener('nh-lock-app', handler)
+  }, [])
+
   if (hasLock && locked) {
     return <AppLock onUnlock={() => setLocked(false)} />
   }
 
-  return (
-    <>
-      <AppRoutes />
-      {hasLock && (
-        <button className="app-lock-fab" onClick={() => setLocked(true)} title="Verrouiller">
-          🔒
-        </button>
-      )}
-    </>
-  )
+  return <AppRoutes />
 }
 
 export default function App() {

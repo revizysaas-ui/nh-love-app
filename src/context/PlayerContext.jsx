@@ -150,8 +150,7 @@ export function PlayerProvider({ children }) {
         clearHarbor()
         return
       }
-      ytRef.current = new YT.Player(hostEl, {
-        videoId: pendingVidRef.current || undefined,
+      const opts = {
         width: '100%',
         height: '100%',
         host: 'https://www.youtube-nocookie.com',
@@ -184,7 +183,9 @@ export function PlayerProvider({ children }) {
           },
           onError: () => handlePlayerError(),
         },
-      })
+      }
+      if (pendingVidRef.current) opts.videoId = pendingVidRef.current
+      ytRef.current = new YT.Player(hostEl, opts)
     })
   }
 
@@ -213,7 +214,11 @@ export function PlayerProvider({ children }) {
     if (!room) return
     load()
     const sub = supabase.channel('playlist-' + room.id).on('postgres_changes', { event: '*', schema: 'public', table: 'playlist', filter: `room_id=eq.${room.id}` }, () => load()).subscribe()
-    return () => supabase.removeChannel(sub)
+    const pollId = setInterval(() => load(), 5000)
+    return () => {
+      supabase.removeChannel(sub)
+      clearInterval(pollId)
+    }
   }, [room?.id])
 
   useEffect(() => {
@@ -260,13 +265,15 @@ export function PlayerProvider({ children }) {
     }
   }, [currentId])
 
-  function add(url, title) {
+  async function add(url, title) {
     if (!url) return
-    void supabase.from('playlist').insert({ room_id: room.id, author: username, url: url.trim(), title: (title || '').trim() || url.trim() })
+    await supabase.from('playlist').insert({ room_id: room.id, author: username, url: url.trim(), title: (title || '').trim() || url.trim() })
+    await load()
   }
 
   async function remove(id) {
     await supabase.from('playlist').delete().eq('id', id)
+    await load()
     if (currentId === id) {
       setCurrentId(null)
       setPlaying(false)

@@ -2,6 +2,7 @@ import { useEffect, lazy, useState } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { RoomProvider, useRoom } from './context/RoomContext'
 import { NotificationProvider, useNotifications } from './context/NotificationContext'
+import { ToastProvider } from './context/ToastContext'
 import ErrorBoundary from './components/ErrorBoundary'
 import Layout from './components/Layout'
 import Join from './components/Join'
@@ -96,7 +97,9 @@ export default function App() {
     <ErrorBoundary>
       <RoomProvider>
         <NotificationProvider>
-          <AppShell />
+          <ToastProvider>
+            <AppShell />
+          </ToastProvider>
         </NotificationProvider>
       </RoomProvider>
     </ErrorBoundary>

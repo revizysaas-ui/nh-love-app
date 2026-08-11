@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { Settings as SettingsIcon, Heart, MapPin, Calendar, Save, Copy, Check, Search, Loader, Shield, Lock, Smartphone } from 'lucide-react'
+import { Settings as SettingsIcon, Heart, MapPin, Calendar, Save, Copy, Check, Search, Loader, Shield, Lock, Smartphone, Ruler, Vibrate } from 'lucide-react'
 import { useRoom } from '../context/RoomContext'
+import { useToast } from '../context/ToastContext'
 import { hashPin } from '../lib/crypto'
 
 async function geocode(city) {
@@ -14,8 +15,21 @@ async function geocode(city) {
   return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) }
 }
 
+function Toggle({ checked, onChange }) {
+  return (
+    <button
+      className={`toggle ${checked ? 'toggle-on' : ''}`}
+      onClick={() => onChange(!checked)}
+      aria-pressed={checked}
+    >
+      <span className="toggle-knob" />
+    </button>
+  )
+}
+
 export default function Settings() {
   const { room, updateRoom, setRoomPassword, setAppLock } = useRoom()
+  const { showToast } = useToast()
   const [form, setForm] = useState(room || {})
   const [saved, setSaved] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -27,6 +41,8 @@ export default function Settings() {
   const [appLockPin, setAppLockPin] = useState('')
   const [appLockSaved, setAppLockSaved] = useState(false)
   const [appLockLoading, setAppLockLoading] = useState(false)
+  const [unit, setUnit] = useState(() => localStorage.getItem('nh_unit') || 'km')
+  const [haptic, setHaptic] = useState(() => localStorage.getItem('nh_haptic') !== 'false')
   const hasAppLock = !!room?.app_lock
 
   if (!room) return null
@@ -255,6 +271,26 @@ export default function Settings() {
               <label>Longitude</label>
               <input type="number" step="any" value={form.city2_lng} onChange={e => handleChange('city2_lng', e.target.value)} />
             </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="settings-card">
+        <h3><Ruler size={18} /> Distance & Préférences</h3>
+        <div className="settings-grid">
+          <div className="field">
+            <label>Unité de distance</label>
+            <div className="unit-seg">
+              <button className={`unit-seg-btn ${unit === 'km' ? 'active' : ''}`} onClick={() => { setUnit('km'); localStorage.setItem('nh_unit', 'km') }}>Km</button>
+              <button className={`unit-seg-btn ${unit === 'mi' ? 'active' : ''}`} onClick={() => { setUnit('mi'); localStorage.setItem('nh_unit', 'mi') }}>Mi</button>
+            </div>
+          </div>
+          <div className="field">
+            <label>Retour haptique</label>
+            <Toggle
+              checked={haptic}
+              onChange={(v) => { setHaptic(v); localStorage.setItem('nh_haptic', String(v)) }}
+            />
           </div>
         </div>
       </div>

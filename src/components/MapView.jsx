@@ -19,10 +19,14 @@ export default function MapView() {
   const mapInstance = useRef(null)
   const markersRef = useRef([])
   const lineRef = useRef(null)
+  const [unit, setUnit] = useState(() => localStorage.getItem('nh_unit') || 'km')
 
   const city1 = room ? { name: room.city1_name, coords: [room.city1_lat, room.city1_lng] } : null
   const city2 = room ? { name: room.city2_name, coords: [room.city2_lat, room.city2_lng] } : null
   const [dist, setDist] = useState(city1 ? calcDistance(...city1.coords, ...city2.coords) : 0)
+
+  const displayDist = unit === 'mi' ? Math.round(dist * 0.621371) : dist
+  const unitLabel = unit === 'mi' ? 'mi' : 'km'
 
   useEffect(() => {
     if (!city1 || !city2 || mapInstance.current) return
@@ -69,12 +73,12 @@ export default function MapView() {
       </div>
 
       <div className="distance-card">
-        <div className="distance-cities">
+          <div className="distance-cities">
           <div className="city-tag">{city1.name}</div>
           <div className="dist-value">
             <Heart size={16} fill="#e25555" />
-            <span className="dist-num">{dist.toLocaleString()}</span>
-            <span className="dist-unit">km</span>
+            <span className="dist-num">{displayDist.toLocaleString()}</span>
+            <span className="dist-unit">{unitLabel}</span>
             <Heart size={16} fill="#e25555" />
           </div>
           <div className="city-tag">{city2.name}</div>

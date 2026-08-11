@@ -465,6 +465,27 @@ body {
 .field-row { display: flex; gap: 12px; }
 .field-row .field { flex: 1; }
 
+/* ========== TOGGLE + UNIT SEG ========== */
+.toggle {
+  width: 48px; height: 26px; border-radius: 999px; border: none; cursor: pointer;
+  background: var(--input); padding: 3px; position: relative;
+  transition: background 0.25s; -webkit-tap-highlight-color: transparent;
+}
+.toggle-knob {
+  display: block; width: 20px; height: 20px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.toggle-on { background: linear-gradient(135deg, var(--primary), var(--ring)); }
+.toggle-on .toggle-knob { transform: translateX(22px); }
+.unit-seg { display: inline-flex; background: var(--input); border-radius: 999px; padding: 3px; gap: 2px; width: fit-content; }
+.unit-seg-btn {
+  border: none; background: transparent; color: var(--muted-foreground);
+  padding: 6px 18px; border-radius: 999px; font-size: 13px; font-weight: 700;
+  cursor: pointer; font-family: inherit; transition: all 0.2s;
+}
+.unit-seg-btn.active { background: var(--card); color: var(--foreground); box-shadow: 0 1px 4px rgba(0,0,0,0.15); }
+
 /* ========== PAGE ========== */
 .page { animation: fadeUp 0.35s ease; }
 .page-header { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
@@ -801,6 +822,21 @@ body {
   border-radius: 20px; font-size: 12px; font-weight: 600; width: fit-content;
 }
 .daily-q-text { font-size: 17px; font-weight: 600; line-height: 1.5; color: var(--foreground); margin: 0; }
+.daily-q-reply {
+  background: none; border: none; color: var(--primary);
+  font-size: 14px; font-weight: 600; cursor: pointer; text-align: left; padding: 0;
+  font-family: inherit;
+}
+.daily-q-input { display: flex; gap: 8px; }
+.daily-q-input input {
+  flex: 1; padding: 10px 14px; border: 2px solid var(--input); border-radius: var(--radius);
+  font-size: 14px; outline: none; font-family: inherit; background: var(--card); color: var(--foreground);
+}
+.daily-q-input input:focus { border-color: var(--ring); box-shadow: 0 0 0 3px rgba(138, 121, 171, 0.1); }
+.daily-q-answered {
+  display: flex; align-items: center; gap: 6px; margin: 0;
+  font-size: 14px; font-weight: 600; color: var(--primary);
+}
 
 /* ========== PHOTO COMMENTS ========== */
 .comments-section { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 12px; }
@@ -1518,3 +1554,18 @@ body {
   transition: all 0.2s;
 }
 .app-lock-fab:active { transform: scale(0.9); }
+
+/* ========== TOAST ========== */
+.toast {
+  position: fixed; bottom: 110px; left: 50%; transform: translateX(-50%);
+  z-index: 300; background: var(--card); color: var(--foreground);
+  border: 1px solid var(--border); border-radius: 999px;
+  padding: 10px 18px; font-size: 14px; font-weight: 600;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.25);
+  animation: toast-in 0.25s ease;
+  max-width: 85vw; text-align: center;
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translate(-50%, 8px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}

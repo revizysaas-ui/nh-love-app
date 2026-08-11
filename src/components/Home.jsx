@@ -1,15 +1,25 @@
 import { useEffect, useState } from 'react'
-import { Heart, Calendar, MapPin, MessageCircle, Image, PenLine, Gamepad2, Sparkles, MessageCircleQuestion, LayoutDashboard, BarChart3, Gift, Hash, Music } from 'lucide-react'
+import { Heart, Calendar, MapPin, MessageCircle, Image, PenLine, Gamepad2, Sparkles, MessageCircleQuestion, LayoutDashboard, BarChart3, Gift, Hash, Music, Send, Flame } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useRoom } from '../context/RoomContext'
+import { useToast } from '../context/ToastContext'
 import { getDailyQuestion } from '../data/daily-questions'
+import { supabase } from '../lib/supabase'
+import { vibrate } from '../lib/haptics'
+
+function todayStr() { return new Date().toISOString().slice(0, 10) }
 
 export default function Home() {
   const navigate = useNavigate()
-  const { room } = useRoom()
+  const { room, username } = useRoom()
+  const { showToast } = useToast()
   const [days, setDays] = useState(0)
   const [untilDays, setUntilDays] = useState(0)
   const [dailyQ, setDailyQ] = useState('')
+  const [todayAnswer, setTodayAnswer] = useState('')
+  const [streak, setStreak] = useState(0)
+  const [answerText, setAnswerText] = useState('')
+  const [answering, setAnswering] = useState(false)
 
   useEffect(() => {
     if (!room) return
@@ -19,7 +29,48 @@ export default function Home() {
     setDays(Math.floor((now - start) / (1000 * 60 * 60 * 24)))
     setUntilDays(Math.floor((meeting - now) / (1000 * 60 * 60 * 24)))
     setDailyQ(getDailyQuestion())
+    loadSpark()
   }, [room])
+
+  async function loadSpark() {
+    if (!room) return
+    const today = todayStr()
+    const { data: todayRow } = await supabase
+      .from('daily_answers').select('*').eq('room_id', room.id).eq('date', today).maybeSingle()
+    setTodayAnswer(todayRow?.answer || '')
+
+    const { data: rows } = await supabase
+      .from('daily_answers').select('date').eq('room_id', room.id).order('date', { ascending: false }).limit(400)
+    if (!rows) return
+
+    const dates = [...new Set(rows.map(r => r.date))].sort().reverse()
+    let s = 0
+    let cursor = new Date()
+    cursor.setDate(cursor.getDate() - (todayRow ? 0 : 1))
+    while (dates.some(d => d === cursor.toISOString().slice(0, 10))) {
+      s++
+      cursor.setDate(cursor.getDate() - 1)
+    }
+    setStreak(s)
+  }
+
+  async function submitAnswer() {
+    const text = answerText.trim()
+    if (!text) return
+    await supabase.from('daily_answers').insert({
+      room_id: room.id,
+      date: todayStr(),
+      question: dailyQ,
+      answer: text,
+      author: username,
+    })
+    setTodayAnswer(text)
+    setAnswerText('')
+    setAnswering(false)
+    loadSpark()
+    vibrate(30)
+    showToast('Réponse partagée 💜')
+  }
 
   if (!room) return null
 
@@ -65,12 +116,35 @@ export default function Home() {
       </div>
 
       {dailyQ && (
-        <div className="daily-question-card" onClick={() => navigate('/jeux')}>
+        <div className="daily-question-card">
           <div className="daily-q-badge">
             <MessageCircleQuestion size={14} />
-            <span>Question du Jour</span>
+            <span>Question du Jour {todayAnswer && '· répondu ✓'}</span>
           </div>
           <p className="daily-q-text">{dailyQ}</p>
+          {!todayAnswer ? (
+            !answering ? (
+              <button className="daily-q-reply" onClick={() => setAnswering(true)}>
+                Répondre →
+              </button>
+            ) : (
+              <div className="daily-q-input">
+                <input
+                  autoFocus
+                  value={answerText}
+                  onChange={e => setAnswerText(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') submitAnswer() }}
+                  placeholder="Ta réponse..."
+                />
+                <button className="btn btn-sm" onClick={submitAnswer} disabled={!answerText.trim()}><Send size={16} /></button>
+              </div>
+            )
+          ) : (
+            <p className="daily-q-answered">
+              <Flame size={14} />
+              Streak actuel : {streak} jour{streak > 1 ? 's' : ''}
+            </p>
+          )}
         </div>
       )}
 

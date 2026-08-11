@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useLayoutEffect } from 'react'
 import { Music, Plus, Trash2, Play, Pause, Video, SkipBack, SkipForward, Repeat, Repeat1, X } from 'lucide-react'
 import { usePlayer, getSongType, spotifyEmbedUrl } from '../context/PlayerContext'
 
@@ -30,7 +30,7 @@ export default function Playlist() {
   const [title, setTitle] = useState('')
   const hostRef = useRef(null)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (hostRef.current) ensurePlayer(hostRef.current)
     return () => releasePlayer()
   }, [])

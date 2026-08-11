@@ -61,6 +61,9 @@ export function PlayerProvider({ children }) {
   const nativeElRef = useRef(null)     // élément audio/vidéo/spotify actuel
   const nativeVisibleRef = useRef(false)
   const harborRef = useRef(null)       // conteneur hors-page pour garder la lecture en vie
+  const screenRef = useRef(null)       // conteneur vidéo persistant (enfant direct de body, jamais déplacé)
+  const screenAnchorRef = useRef(null) // élément de la page sur lequel aligner l'overlay vidéo
+  const screenVisibleRef = useRef(false)
   const actionsRef = useRef({})
 
   const songsRef = useRef(songs)
@@ -88,6 +91,78 @@ export function PlayerProvider({ children }) {
 
   function clearHarbor() {
     if (harborRef.current) harborRef.current.innerHTML = ''
+  }
+
+  // Conteneur d'affichage permanent pour la vidéo YouTube : il reste un enfant
+  // direct de <body>, jamais déplacé ni supprimé, pour ne jamais faire recharger
+  // l'iframe (un simple reparent réinitialise le lecteur). On l'aligne par-dessus
+  // l'emplacement prévu sur la page (position: fixed) et on le masque ailleurs.
+  function getScreen() {
+    if (!screenRef.current) {
+      const div = document.createElement('div')
+      div.setAttribute('data-yt-screen', '')
+      div.style.cssText = 'position:fixed;left:-9999px;top:0;width:640px;height:360px;display:block;z-index:45;background:#000;overflow:hidden'
+      document.body.appendChild(div)
+      screenRef.current = div
+    }
+    return screenRef.current
+  }
+
+  // Une fois le lecteur créé, YT.Player remplace le div par l'iframe directement
+  // dans <body> : c'est cet élément vivant qu'on positionne/masque.
+  function getScreenEl() {
+    if (ytRef.current) {
+      const iframe = ytRef.current.getIframe()
+      if (iframe && iframe.parentElement) {
+        iframe.setAttribute('data-yt-screen', '')
+        return iframe
+      }
+    }
+    return getScreen()
+  }
+
+  // Masque la vidéo hors écran tout en gardant une taille réelle : un display:none
+  // ferait ignorer loadVideoById à YouTube et casserait le passage automatique à
+  // la chanson suivante pendant que le mini-player est affiché.
+  function hideScreen() {
+    const screen = getScreenEl()
+    screen.style.display = 'block'
+    screen.style.left = '-9999px'
+    screen.style.top = '0'
+    screen.style.width = '640px'
+    screen.style.height = '360px'
+    screenVisibleRef.current = false
+  }
+
+  function positionScreen(anchor) {
+    const screen = getScreenEl()
+    if (!anchor || !anchor.isConnected) {
+      hideScreen()
+      return
+    }
+    const r = anchor.getBoundingClientRect()
+    const vw = window.innerWidth
+    const vh = window.innerHeight
+    const x = Math.max(0, r.left)
+    const y = Math.max(0, r.top)
+    const w = Math.min(vw, r.right) - x
+    const h = Math.min(vh, r.bottom) - y
+    if (w < 4 || h < 4) {
+      hideScreen()
+      return
+    }
+    screen.style.display = 'block'
+    screen.style.left = x + 'px'
+    screen.style.top = y + 'px'
+    screen.style.width = w + 'px'
+    screen.style.height = h + 'px'
+    screenVisibleRef.current = true
+  }
+
+  function destroyScreen() {
+    const el = getScreenEl()
+    if (el && el.parentElement) el.remove()
+    screenRef.current = null
   }
 
   function advance() {
@@ -137,16 +212,15 @@ export function PlayerProvider({ children }) {
 
   function ensurePlayer(hostEl) {
     if (!hostEl) return
+    screenAnchorRef.current = hostEl
     if (ytRef.current) {
-      const iframe = ytRef.current.getIframe()
-      if (iframe && iframe.parentElement !== hostEl) hostEl.appendChild(iframe)
+      positionScreen(hostEl)
       clearHarbor()
       return
     }
     loadYouTubeAPI().then(YT => {
       if (ytRef.current) {
-        const iframe = ytRef.current.getIframe()
-        if (iframe && iframe.parentElement !== hostEl) hostEl.appendChild(iframe)
+        positionScreen(hostEl)
         clearHarbor()
         return
       }
@@ -169,6 +243,7 @@ export function PlayerProvider({ children }) {
               ytRef.current.loadVideoById(pendingVidRef.current)
               pendingVidRef.current = null
             }
+            positionScreen(hostEl)
           },
           onStateChange: e => {
             setPlaying(e.data === 1)
@@ -185,20 +260,17 @@ export function PlayerProvider({ children }) {
         },
       }
       if (pendingVidRef.current) opts.videoId = pendingVidRef.current
-      ytRef.current = new YT.Player(hostEl, opts)
+      ytRef.current = new YT.Player(getScreen(), opts)
     })
   }
 
   function releasePlayer() {
     const harbor = getHarbor()
-    if (ytRef.current) {
-      const iframe = ytRef.current.getIframe()
-      if (iframe && iframe.parentElement) harbor.appendChild(iframe)
-    }
     if (nativeElRef.current && nativeElRef.current.parentElement) {
       harbor.appendChild(nativeElRef.current)
     }
     nativeVisibleRef.current = false
+    if (screenRef.current || ytRef.current) hideScreen()
   }
 
   async function load() {
@@ -209,6 +281,20 @@ export function PlayerProvider({ children }) {
       if (currentIdRef.current && !data.some(s => s.id === currentIdRef.current)) setCurrentId(null)
     }
   }
+
+  useEffect(() => {
+    const onMove = () => {
+      if (!screenRef.current && !ytRef.current) return
+      if (!screenVisibleRef.current) return
+      positionScreen(screenAnchorRef.current)
+    }
+    window.addEventListener('resize', onMove)
+    window.addEventListener('scroll', onMove, true)
+    return () => {
+      window.removeEventListener('resize', onMove)
+      window.removeEventListener('scroll', onMove, true)
+    }
+  }, [])
 
   useEffect(() => {
     if (!room) return
@@ -230,10 +316,17 @@ export function PlayerProvider({ children }) {
       nativeElRef.current = null
     }
     clearHarbor()
+    destroyScreen()
+    ytRef.current = null
+    screenAnchorRef.current = null
+    screenVisibleRef.current = false
   }, [room?.id])
 
   useEffect(() => {
-    if (!currentSong) return
+    if (!currentSong) {
+      if (screenRef.current || ytRef.current) hideScreen()
+      return
+    }
     if (currentType === 'youtube') {
       const vid = extractYouTubeId(currentSong.url)
       if (!vid) return
@@ -242,9 +335,11 @@ export function PlayerProvider({ children }) {
       } else {
         pendingVidRef.current = vid
       }
+      if (screenAnchorRef.current) positionScreen(screenAnchorRef.current)
       return
     }
     if (currentType === 'audio' || currentType === 'video') {
+      if (screenRef.current || ytRef.current) hideScreen()
       if (!nativeVisibleRef.current) {
         if (nativeElRef.current) {
           try { nativeElRef.current.pause() } catch {}

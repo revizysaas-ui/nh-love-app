@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Heart, MessageCircle, Image, MapPin, PenLine, Gamepad2 } from "lucide-react";
 
@@ -19,6 +19,11 @@ export default function ExpandableTabs() {
     return idx >= 0 ? idx : 0;
   });
   const scrollRef = useRef(null);
+
+  useEffect(() => {
+    const idx = tabs.findIndex(t => t.path === location.pathname);
+    if (idx >= 0) setSelected(idx);
+  }, [location.pathname]);
 
   function handleSelect(index) {
     setSelected(index);

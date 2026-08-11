@@ -201,158 +201,160 @@ export default function Messages() {
 
   return (
     <div className="page messages-page">
-      <div className="chat-header">
-        <div className="chat-avatar">{initials}</div>
-        <div className="chat-meta">
-          <strong>{room.name1} & {room.name2}</strong>
-          <span>{messages.length} message{messages.length > 1 ? 's' : ''} 💬</span>
-        </div>
-        <div className="chat-actions">
-          <button className={`chat-icon-btn ${showSearch ? 'active' : ''}`} onClick={() => setShowSearch(!showSearch)} title="Rechercher">
-            <Search size={18} />
-          </button>
-          <button className={`chat-icon-btn ${showBgMenu ? 'active' : ''}`} onClick={() => setShowBgMenu(!showBgMenu)} title="Fond du chat">
-            <Palette size={18} />
-          </button>
-        </div>
-      </div>
-
-      {showBgMenu && (
-        <div className="chat-bg-menu">
-          <button onClick={() => bgFileRef.current?.click()}>
-            <Camera size={16} /> Choisir une photo de fond
-          </button>
-          {chatBg && (
-            <button onClick={removeBg}>
-              <X size={16} /> Retirer le fond
-            </button>
-          )}
-          <small>La photo de fond sera visible par vous deux.</small>
-        </div>
-      )}
-      <input type="file" ref={bgFileRef} accept="image/*" style={{ display: 'none' }} onChange={handleBgUpload} />
-
       <div
-        className={`messages-container ${chatBg ? 'has-bg' : ''}`}
+        className={`chat-card ${chatBg ? 'has-bg' : ''}`}
         style={chatBg ? { backgroundImage: `url(${chatBg})` } : undefined}
       >
         {chatBg && <div className="chat-bg-overlay" />}
 
-        {showSearch && (
-          <div className="msg-search-bar">
-            <Search size={16} />
-            <input
-              placeholder="Rechercher un message..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              autoFocus
-            />
-            {searchQuery && (
-              <button className="btn-icon" onClick={() => setSearchQuery('')}>
-                <X size={14} />
+        <div className="chat-header">
+          <div className="chat-avatar">{initials}</div>
+          <div className="chat-meta">
+            <strong>{room.name1} & {room.name2}</strong>
+            <span>{messages.length} message{messages.length > 1 ? 's' : ''} 💬</span>
+          </div>
+          <div className="chat-actions">
+            <button className={`chat-icon-btn ${showSearch ? 'active' : ''}`} onClick={() => setShowSearch(!showSearch)} title="Rechercher">
+              <Search size={18} />
+            </button>
+            <button className={`chat-icon-btn ${showBgMenu ? 'active' : ''}`} onClick={() => setShowBgMenu(!showBgMenu)} title="Fond du chat">
+              <Palette size={18} />
+            </button>
+          </div>
+        </div>
+
+        {showBgMenu && (
+          <div className="chat-bg-menu">
+            <button onClick={() => bgFileRef.current?.click()}>
+              <Camera size={16} /> Choisir une photo de fond
+            </button>
+            {chatBg && (
+              <button onClick={removeBg}>
+                <X size={16} /> Retirer le fond
               </button>
             )}
+            <small>La photo de fond sera visible par vous deux.</small>
           </div>
         )}
+        <input type="file" ref={bgFileRef} accept="image/*" style={{ display: 'none' }} onChange={handleBgUpload} />
 
-        {loading ? (
-          <div className="loading-messages"><div className="spinner" /></div>
-        ) : messages.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-state-icon">
-              <MessageCircle size={48} />
-              <Heart size={20} className="heart-pulse" fill="currentColor" />
+        <div className="messages-container">
+          {showSearch && (
+            <div className="msg-search-bar">
+              <Search size={16} />
+              <input
+                placeholder="Rechercher un message..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                autoFocus
+              />
+              {searchQuery && (
+                <button className="btn-icon" onClick={() => setSearchQuery('')}>
+                  <X size={14} />
+                </button>
+              )}
             </div>
-            <p>Votre conversation vous attend</p>
-            <span style={{ fontSize: 14, color: 'var(--muted-foreground)' }}>
-              Écris le premier mot doux ✨
-            </span>
-          </div>
-        ) : filteredMessages.length === 0 && searchQuery ? (
-          <div className="empty-state">
-            <Search size={48} />
-            <p>Aucun message trouvé</p>
-          </div>
-        ) : (
-          <div className="messages-list custom-scrollbar" ref={scrollRef} onScroll={handleScroll}>
-            {filteredMessages.map((m, index) => {
-              const isMe = m.author === username
-              const msgReactions = reactions[m.id] || []
-              const hasLiked = msgReactions.some(r => r.author === username)
-              const showDate = index === 0 || getDateKey(m.created_at) !== getDateKey(filteredMessages[index - 1].created_at)
-              return (
-                <div key={m.id}>
-                  {showDate && (
-                    <div className="msg-date-separator">
-                      <div className="msg-date-line" />
-                      <span>{getDateLabel(m.created_at)}</span>
-                      <div className="msg-date-line" />
-                    </div>
-                  )}
-                  <div className={`msg-row ${isMe ? 'own' : ''}`}>
-                    <div className={`msg-bubble ${isMe ? 'own' : ''} ${m.image_url ? 'img-msg' : ''}`}>
-                      {!isMe && <p className="msg-author">{m.author}</p>}
-                      {m.image_url && (
-                        <img src={m.image_url} alt="photo" className="msg-image" loading="lazy" />
-                      )}
-                      {m.text && <p>{m.text}</p>}
-                      <span className="msg-time">{new Date(m.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
-                    </div>
-                    {msgReactions.length > 0 && (
-                      <span className="msg-reaction-badge">❤️ {msgReactions.length}</span>
+          )}
+
+          {loading ? (
+            <div className="loading-messages"><div className="spinner" /></div>
+          ) : messages.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-state-icon">
+                <MessageCircle size={48} />
+                <Heart size={20} className="heart-pulse" fill="currentColor" />
+              </div>
+              <p>Votre conversation vous attend</p>
+              <span style={{ fontSize: 14, color: 'var(--muted-foreground)' }}>
+                Écris le premier mot doux ✨
+              </span>
+            </div>
+          ) : filteredMessages.length === 0 && searchQuery ? (
+            <div className="empty-state">
+              <Search size={48} />
+              <p>Aucun message trouvé</p>
+            </div>
+          ) : (
+            <div className="messages-list custom-scrollbar" ref={scrollRef} onScroll={handleScroll}>
+              {filteredMessages.map((m, index) => {
+                const isMe = m.author === username
+                const msgReactions = reactions[m.id] || []
+                const hasLiked = msgReactions.some(r => r.author === username)
+                const showDate = index === 0 || getDateKey(m.created_at) !== getDateKey(filteredMessages[index - 1].created_at)
+                return (
+                  <div key={m.id}>
+                    {showDate && (
+                      <div className="msg-date-separator">
+                        <div className="msg-date-line" />
+                        <span>{getDateLabel(m.created_at)}</span>
+                        <div className="msg-date-line" />
+                      </div>
                     )}
-                    <div className="msg-actions">
-                      <button className="msg-reaction-trigger" onClick={() => toggleReaction(m.id)} title="J'aime">
-                        <Heart size={14} fill={hasLiked ? 'currentColor' : 'none'} />
-                      </button>
-                      <button className="msg-delete-trigger" onClick={() => deleteMessage(m.id)} title="Supprimer">
-                        <Trash2 size={12} />
-                      </button>
+                    <div className={`msg-row ${isMe ? 'own' : ''}`}>
+                      <div className={`msg-bubble ${isMe ? 'own' : ''} ${m.image_url ? 'img-msg' : ''}`}>
+                        {!isMe && <p className="msg-author">{m.author}</p>}
+                        {m.image_url && (
+                          <img src={m.image_url} alt="photo" className="msg-image" loading="lazy" />
+                        )}
+                        {m.text && <p>{m.text}</p>}
+                        <span className="msg-time">{new Date(m.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
+                      {msgReactions.length > 0 && (
+                        <span className="msg-reaction-badge">❤️ {msgReactions.length}</span>
+                      )}
+                      <div className="msg-actions">
+                        <button className="msg-reaction-trigger" onClick={() => toggleReaction(m.id)} title="J'aime">
+                          <Heart size={14} fill={hasLiked ? 'currentColor' : 'none'} />
+                        </button>
+                        <button className="msg-delete-trigger" onClick={() => deleteMessage(m.id)} title="Supprimer">
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              )
-            })}
-            <div ref={endRef} />
+                )
+              })}
+              <div ref={endRef} />
+            </div>
+          )}
+
+          {showScrollBtn && (
+            <button className="scroll-to-bottom" onClick={scrollToBottom}>
+              <ArrowDown size={16} />
+            </button>
+          )}
+        </div>
+
+        {showEmojis && (
+          <div className="msg-emoji-bar">
+            {EMOJIS.map(e => (
+              <button key={e} onClick={() => setText(prev => prev + e)} className="msg-emoji-btn">{e}</button>
+            ))}
           </div>
         )}
 
-        {showScrollBtn && (
-          <button className="scroll-to-bottom" onClick={scrollToBottom}>
-            <ArrowDown size={16} />
+        <div className="msg-input-bar">
+          <button type="button" className="msg-photo-btn" onClick={() => cameraRef.current?.click()} disabled={uploading} title="Prendre une photo">
+            <Camera size={20} />
           </button>
-        )}
-      </div>
-
-      {showEmojis && (
-        <div className="msg-emoji-bar">
-          {EMOJIS.map(e => (
-            <button key={e} onClick={() => setText(prev => prev + e)} className="msg-emoji-btn">{e}</button>
-          ))}
+          <button type="button" className="msg-photo-btn" onClick={() => fileRef.current?.click()} disabled={uploading} title="Choisir une photo">
+            <FolderOpen size={20} />
+          </button>
+          <input type="file" ref={cameraRef} accept="image/*" capture="environment" style={{ display: 'none' }} onChange={handleFile} />
+          <input type="file" ref={fileRef} accept="image/*" style={{ display: 'none' }} onChange={handleFile} />
+          <button type="button" className="msg-photo-btn" onClick={() => setShowEmojis(!showEmojis)} title="Émojis">
+            <Smile size={20} />
+          </button>
+          <input
+            placeholder="Écris un message..."
+            value={text}
+            onChange={e => setText(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage(e)}
+          />
+          <button type="submit" className="btn-send" disabled={!text.trim()} onClick={sendMessage} title="Envoyer">
+            {uploading ? <div className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} /> : <Send size={18} />}
+          </button>
         </div>
-      )}
-
-      <div className="msg-input-bar">
-        <button type="button" className="msg-photo-btn" onClick={() => cameraRef.current?.click()} disabled={uploading} title="Prendre une photo">
-          <Camera size={20} />
-        </button>
-        <button type="button" className="msg-photo-btn" onClick={() => fileRef.current?.click()} disabled={uploading} title="Choisir une photo">
-          <FolderOpen size={20} />
-        </button>
-        <input type="file" ref={cameraRef} accept="image/*" capture="environment" style={{ display: 'none' }} onChange={handleFile} />
-        <input type="file" ref={fileRef} accept="image/*" style={{ display: 'none' }} onChange={handleFile} />
-        <button type="button" className="msg-photo-btn" onClick={() => setShowEmojis(!showEmojis)} title="Émojis">
-          <Smile size={20} />
-        </button>
-        <input
-          placeholder="Écris un message..."
-          value={text}
-          onChange={e => setText(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage(e)}
-        />
-        <button type="submit" className="btn-send" disabled={!text.trim()} onClick={sendMessage} title="Envoyer">
-          {uploading ? <div className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} /> : <Send size={18} />}
-        </button>
       </div>
     </div>
   )

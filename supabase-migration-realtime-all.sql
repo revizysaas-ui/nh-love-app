@@ -1,34 +1,36 @@
--- Migration Realtime : ajoute TOUTES les tables de l'app à la publication Realtime
+-- Migration Realtime : ajoute toutes les tables de l'app à la publication Realtime
 -- À exécuter dans le Supabase SQL Editor (sûr à relancer, idempotent)
 --
--- C'est CRUCIAL pour les jeux en couple : la synchro passe par rooms.active_game,
+-- CRUCIAL pour les jeux en couple : la synchro passe par rooms.active_game,
 -- et les notifications par la table notifications.
 
-DO $$
-DECLARE
-  tbl TEXT;
-BEGIN
-  FOR tbl IN
-    SELECT tablename FROM pg_tables
-    WHERE schemaname = 'public'
-      AND tablename IN (
+do
+$do$
+declare
+  _t text;
+begin
+  for _t in
+    select tablename from pg_tables
+    where schemaname = 'public'
+      and tablename = any(array[
         'rooms','messages','reactions','notifications','photos','photo_comments',
         'drawings','questions','quiz_sessions','game_morpion','daily_answers',
         'wishlist','counters','playlist','room_sessions','timeline','themes'
-      )
-  LOOP
-    IF NOT EXISTS (
-      SELECT 1 FROM pg_publication_tables
-      WHERE pubname = 'supabase_realtime'
-        AND schemaname = 'public'
-        AND tablename = tbl
-    ) THEN
-      EXECUTE format('ALTER PUBLICATION supabase_realtime ADD TABLE %I', tbl);
-    END IF;
-  END LOOP;
-END $$;
+      ])
+  loop
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime'
+        and schemaname = 'public'
+        and tablename = _t
+    ) then
+      execute format('alter publication supabase_realtime add table %I', _t);
+    end if;
+  end loop;
+end
+$do$;
 
--- Vérification (doit lister toutes les tables de l'app)
-SELECT tablename FROM pg_publication_tables
-WHERE pubname = 'supabase_realtime' AND schemaname = 'public'
-ORDER BY tablename;
+-- Vérification : doit lister les tables de l'app
+select tablename from pg_publication_tables
+where pubname = 'supabase_realtime' and schemaname = 'public'
+order by tablename;

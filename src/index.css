@@ -1213,6 +1213,32 @@ body {
 .video-wrapper { position: relative; width: 100%; padding-top: 56.25%; border-radius: var(--radius); overflow: hidden; background: #000; }
 .video-wrapper iframe, .video-wrapper video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; }
 
+/* Lecteur YouTube contrôlé par l'IFrame Player API : toujours monté,
+   replié par défaut pour ne pas gêner, déplié quand une vidéo joue. */
+.playlist-player .yt-host {
+  position: relative; width: 100%; max-height: 0; overflow: hidden;
+  border-radius: var(--radius); background: #000;
+}
+.playlist-player .yt-host.visible { max-height: none; aspect-ratio: 16 / 9; }
+.playlist-player .yt-host #yt-host { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+.playlist-player .yt-host #yt-host iframe { border: none; }
+.playlist-controls {
+  display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap;
+  margin-top: -8px; margin-bottom: 16px; padding: 10px 14px;
+  background: var(--card); border: 1px solid var(--border); border-radius: calc(var(--radius) * 1.5);
+}
+.ctrl-btn {
+  width: 40px; height: 40px; border-radius: var(--radius-full);
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: var(--secondary); color: var(--foreground);
+  cursor: pointer; transition: all 0.2s; flex-shrink: 0;
+}
+.ctrl-btn:hover:not(:disabled) { background: var(--muted); color: var(--primary); transform: scale(1.05); }
+.ctrl-btn:disabled { opacity: 0.35; cursor: default; }
+.ctrl-btn.active { background: linear-gradient(135deg, var(--primary), var(--accent)); color: var(--primary-foreground); box-shadow: 0 2px 10px rgba(138, 121, 171, 0.3); }
+.ctrl-btn.ctrl-main { width: 48px; height: 48px; background: linear-gradient(135deg, var(--primary), var(--accent)); color: var(--primary-foreground); box-shadow: 0 2px 10px rgba(138, 121, 171, 0.35); }
+.ctrl-btn.ctrl-main:hover:not(:disabled) { transform: scale(1.08); }
+
 .counter-card {
   display: flex; align-items: center; gap: 12px; padding: 14px;
   background: var(--card); border: 1px solid var(--border); border-radius: calc(var(--radius) * 1.5);

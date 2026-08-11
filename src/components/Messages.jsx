@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Send, MessageCircle, Heart, Trash2, Camera, FolderOpen, Search, Smile, ArrowDown, X } from 'lucide-react'
+import { Send, MessageCircle, Heart, Trash2, Camera, FolderOpen, Search, Smile, ArrowDown, X, Palette } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useRoom } from '../context/RoomContext'
+import { useToast } from '../context/ToastContext'
 import { notify } from '../lib/notify'
 
 const EMOJIS = ['❤️', '😘', '🥰', '💕', '💗', '🫶', '💋', '🌙', '✨', '🎉']
@@ -23,7 +24,8 @@ function getDateLabel(dateStr) {
 }
 
 export default function Messages() {
-  const { room, username } = useRoom()
+  const { room, username, updateRoom } = useRoom()
+  const { showToast } = useToast()
   const [messages, setMessages] = useState([])
   const [reactions, setReactions] = useState({})
   const [text, setText] = useState('')
@@ -33,10 +35,12 @@ export default function Messages() {
   const [showSearch, setShowSearch] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [showScrollBtn, setShowScrollBtn] = useState(false)
+  const [showBgMenu, setShowBgMenu] = useState(false)
   const endRef = useRef(null)
   const scrollRef = useRef(null)
   const cameraRef = useRef(null)
   const fileRef = useRef(null)
+  const bgFileRef = useRef(null)
 
   useEffect(() => {
     if (!room) return
@@ -158,6 +162,25 @@ export default function Messages() {
     fileRef.current.value = ''
   }
 
+  async function handleBgUpload(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const path = `${room.id}/chat-bg-${Date.now()}`
+    const { error: uploadError } = await supabase.storage.from('photos').upload(path, file)
+    if (uploadError) { showToast('Impossible de charger la photo 😕'); return }
+    const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(path)
+    await updateRoom({ chat_bg: publicUrl })
+    setShowBgMenu(false)
+    showToast('Fond mis à jour 💜')
+    bgFileRef.current.value = ''
+  }
+
+  async function removeBg() {
+    await updateRoom({ chat_bg: null })
+    setShowBgMenu(false)
+    showToast('Fond retiré')
+  }
+
   async function deleteMessage(id) {
     await supabase.from('messages').delete().eq('id', id)
     setMessages(prev => prev.filter(m => m.id !== id))
@@ -167,15 +190,48 @@ export default function Messages() {
     ? messages.filter(m => (m.text || '').toLowerCase().includes(searchQuery.toLowerCase()))
     : messages
 
+  const chatBg = room?.chat_bg || ''
+  const initials = `${(room.name1 || 'N').charAt(0)}${(room.name2 || 'H').charAt(0)}`.toUpperCase()
+
   return (
     <div className="page messages-page">
-      <div className="page-header">
-        <MessageCircle size={24} />
-        <h2>Nos Messages</h2>
+      <div className="chat-header">
+        <div className="chat-avatar">{initials}</div>
+        <div className="chat-meta">
+          <strong>{room.name1} & {room.name2}</strong>
+          <span>{messages.length} message{messages.length > 1 ? 's' : ''} 💬</span>
+        </div>
+        <div className="chat-actions">
+          <button className={`chat-icon-btn ${showSearch ? 'active' : ''}`} onClick={() => setShowSearch(!showSearch)} title="Rechercher">
+            <Search size={18} />
+          </button>
+          <button className={`chat-icon-btn ${showBgMenu ? 'active' : ''}`} onClick={() => setShowBgMenu(!showBgMenu)} title="Fond du chat">
+            <Palette size={18} />
+          </button>
+        </div>
       </div>
 
-      <div className="messages-container">
-        {/* Search bar */}
+      {showBgMenu && (
+        <div className="chat-bg-menu">
+          <button onClick={() => bgFileRef.current?.click()}>
+            <Camera size={16} /> Choisir une photo de fond
+          </button>
+          {chatBg && (
+            <button onClick={removeBg}>
+              <X size={16} /> Retirer le fond
+            </button>
+          )}
+          <small>La photo de fond sera visible par vous deux.</small>
+        </div>
+      )}
+      <input type="file" ref={bgFileRef} accept="image/*" style={{ display: 'none' }} onChange={handleBgUpload} />
+
+      <div
+        className={`messages-container ${chatBg ? 'has-bg' : ''}`}
+        style={chatBg ? { backgroundImage: `url(${chatBg})` } : undefined}
+      >
+        {chatBg && <div className="chat-bg-overlay" />}
+
         {showSearch && (
           <div className="msg-search-bar">
             <Search size={16} />
@@ -228,24 +284,22 @@ export default function Messages() {
                     </div>
                   )}
                   <div className={`msg-row ${isMe ? 'own' : ''}`}>
-                    <div className={`msg-bubble ${isMe ? 'own' : ''}`}>
+                    <div className={`msg-bubble ${isMe ? 'own' : ''} ${m.image_url ? 'img-msg' : ''}`}>
                       {!isMe && <p className="msg-author">{m.author}</p>}
-                      {m.text && <p>{m.text}</p>}
                       {m.image_url && (
                         <img src={m.image_url} alt="photo" className="msg-image" loading="lazy" />
                       )}
-                      <p className="msg-time">{new Date(m.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</p>
-                      {msgReactions.length > 0 && (
-                        <div className="msg-reactions">
-                          <span className="msg-reaction-badge">❤️ {msgReactions.length}</span>
-                        </div>
-                      )}
+                      {m.text && <p>{m.text}</p>}
+                      <span className="msg-time">{new Date(m.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
+                    {msgReactions.length > 0 && (
+                      <span className="msg-reaction-badge">❤️ {msgReactions.length}</span>
+                    )}
                     <div className="msg-actions">
-                      <button className="msg-reaction-trigger" onClick={() => toggleReaction(m.id)}>
+                      <button className="msg-reaction-trigger" onClick={() => toggleReaction(m.id)} title="J'aime">
                         <Heart size={14} fill={hasLiked ? 'currentColor' : 'none'} />
                       </button>
-                      <button className="msg-delete-trigger" onClick={() => deleteMessage(m.id)}>
+                      <button className="msg-delete-trigger" onClick={() => deleteMessage(m.id)} title="Supprimer">
                         <Trash2 size={12} />
                       </button>
                     </div>
@@ -257,7 +311,6 @@ export default function Messages() {
           </div>
         )}
 
-        {/* Scroll to bottom */}
         {showScrollBtn && (
           <button className="scroll-to-bottom" onClick={scrollToBottom}>
             <ArrowDown size={16} />
@@ -265,7 +318,6 @@ export default function Messages() {
         )}
       </div>
 
-      {/* Emoji picker */}
       {showEmojis && (
         <div className="msg-emoji-bar">
           {EMOJIS.map(e => (
@@ -274,17 +326,16 @@ export default function Messages() {
         </div>
       )}
 
-      {/* Input area */}
       <div className="msg-input-bar">
-        <button type="button" className="msg-photo-btn" onClick={() => cameraRef.current?.click()} disabled={uploading}>
+        <button type="button" className="msg-photo-btn" onClick={() => cameraRef.current?.click()} disabled={uploading} title="Prendre une photo">
           <Camera size={20} />
         </button>
-        <button type="button" className="msg-photo-btn" onClick={() => fileRef.current?.click()} disabled={uploading}>
+        <button type="button" className="msg-photo-btn" onClick={() => fileRef.current?.click()} disabled={uploading} title="Choisir une photo">
           <FolderOpen size={20} />
         </button>
         <input type="file" ref={cameraRef} accept="image/*" capture="environment" style={{ display: 'none' }} onChange={handleFile} />
         <input type="file" ref={fileRef} accept="image/*" style={{ display: 'none' }} onChange={handleFile} />
-        <button type="button" className="msg-photo-btn" onClick={() => setShowEmojis(!showEmojis)}>
+        <button type="button" className="msg-photo-btn" onClick={() => setShowEmojis(!showEmojis)} title="Émojis">
           <Smile size={20} />
         </button>
         <input
@@ -293,7 +344,7 @@ export default function Messages() {
           onChange={e => setText(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage(e)}
         />
-        <button type="submit" className="btn-send" disabled={!text.trim()} onClick={sendMessage}>
+        <button type="submit" className="btn-send" disabled={!text.trim()} onClick={sendMessage} title="Envoyer">
           {uploading ? <div className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} /> : <Send size={18} />}
         </button>
       </div>

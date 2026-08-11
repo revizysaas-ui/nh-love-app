@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { RoomProvider, useRoom } from './context/RoomContext'
 import { NotificationProvider, useNotifications } from './context/NotificationContext'
 import { ToastProvider } from './context/ToastContext'
+import { PlayerProvider } from './context/PlayerContext'
 import ErrorBoundary from './components/ErrorBoundary'
 import Layout from './components/Layout'
 import Join from './components/Join'
@@ -119,8 +120,10 @@ export default function App() {
       <RoomProvider>
         <NotificationProvider>
           <ToastProvider>
-            <GameInviteWatcher />
-            <AppShell />
+            <PlayerProvider>
+              <GameInviteWatcher />
+              <AppShell />
+            </PlayerProvider>
           </ToastProvider>
         </NotificationProvider>
       </RoomProvider>

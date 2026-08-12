@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { motion } from "framer-motion";
 import { Heart, MessageCircle, Image, MapPin, PenLine, Gamepad2 } from "lucide-react";
 
 const tabs = [
@@ -42,7 +43,14 @@ export default function ExpandableTabs() {
             className={`expandable-tab ${isSelected ? "selected" : ""}`}
             style={{ gap: isSelected ? "0.5rem" : "0" }}
           >
-            <Icon size={22} strokeWidth={isSelected ? 2.5 : 2} />
+            {isSelected && (
+              <motion.span
+                layoutId="tab-pill"
+                className="tab-pill-bg"
+                transition={{ type: "spring", stiffness: 420, damping: 32 }}
+              />
+            )}
+            <Icon size={22} strokeWidth={isSelected ? 2.5 : 2} className="expandable-tab-icon" />
             {isSelected && <span className="expandable-tab-label">{tab.title}</span>}
           </button>
         );

@@ -47,7 +47,9 @@ export default function Layout() {
 
       <main className="main-content">
         <Suspense fallback={null}>
-          <Outlet />
+          <div key={location.pathname} className="page-route">
+            <Outlet />
+          </div>
         </Suspense>
       </main>
 

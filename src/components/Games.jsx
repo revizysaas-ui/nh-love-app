@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Gamepad2, Heart, Sparkles, Shuffle, RotateCcw, AlertCircle, HelpCircle, MessageCircle, Target, BookOpen, Camera, CheckCircle2, XCircle, UserCheck, Cherry, Grid3X3, ArrowLeft, User, Users, Square, LogOut } from 'lucide-react'
+import { Gamepad2, Heart, Sparkles, Shuffle, RotateCcw, AlertCircle, HelpCircle, MessageCircle, Target, BookOpen, Camera, CheckCircle2, XCircle, UserCheck, Cherry, Grid3X3, ArrowLeft, User, Users, Square, LogOut, PenLine, Pen, Eraser, Trash2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useRoom } from '../context/RoomContext'
 import { notify } from '../lib/notify'
@@ -8,6 +8,7 @@ import QUIZ_QUESTIONS from '../data/quiz-questions'
 import { getDailyQuestion } from '../data/daily-questions'
 import CULTURE_QUESTIONS from '../data/culture-questions'
 import DEFIS_DATA from '../data/defis'
+import DRAW_WORDS from '../data/draw-words'
 
 const GAMES_LIST = [
   { key: 'truthdare', icon: Heart, label: 'Vérité ou Action', color: '#e74c8b', desc: 'Osez tout vous dire !' },
@@ -18,6 +19,7 @@ const GAMES_LIST = [
   { key: 'roue', icon: Cherry, label: 'Roue de la Chance', color: '#34d399', desc: 'Laissez le hasard décider' },
   { key: 'morpion', icon: Grid3X3, label: 'Morpion', color: '#22d3ee', desc: 'Le classique revisité' },
   { key: 'preferes', icon: Gamepad2, label: 'Tu Préfères', color: '#f97316', desc: 'Choix impossibles en couple' },
+  { key: 'guessdraw', icon: PenLine, label: 'Dessin à deviner', color: '#0ea5e9', desc: 'Devine ce que ton/ta chéri·e dessine en direct !' },
 ]
 
 const WYR_QUESTIONS = [
@@ -985,6 +987,245 @@ function WouldYouRather() {
   )
 }
 
+function GuessDrawGame() {
+  const { room, username, updateRoom } = useRoom()
+  const canvasRef = useRef(null)
+  const containerRef = useRef(null)
+  const channelRef = useRef(null)
+  const subscribed = useRef(false)
+  const lastPoint = useRef(null)
+  const isDrawing = useRef(false)
+  const wordRef = useRef('')
+  const roomRef = useRef(room)
+  roomRef.current = room
+  const myRoleRef = useRef(null)
+  const mode = room?.active_game?.mode || 'solo'
+  const status = room?.active_game?.status || 'playing'
+  const drawer = room?.active_game?.drawer || null
+  const round = room?.active_game?.round || 1
+  const scores = room?.active_game?.scores || {}
+  const role = drawer === username ? 'drawer' : 'guesser'
+
+  const [word, setWord] = useState('')
+  const [color, setColor] = useState('#8a79ab')
+  const [brushSize, setBrushSize] = useState(4)
+  const [tool, setTool] = useState('pen')
+  const [guess, setGuess] = useState('')
+  const [log, setLog] = useState([])
+  const [flash, setFlash] = useState('')
+
+  const COLORS = ['#8a79ab', '#e74c6f', '#4a90d9', '#2ecc71', '#f39c12', '#2c3e50', '#e74c3c']
+  myRoleRef.current = role
+
+  function normalize(s) {
+    return s.trim().toLowerCase().normalize('NFD').replace(/\p{M}/gu, '')
+  }
+
+  function pickWord() {
+    const w = DRAW_WORDS[Math.floor(Math.random() * DRAW_WORDS.length)]
+    wordRef.current = w
+    setWord(w)
+  }
+
+  function getPos(e) {
+    const canvas = canvasRef.current
+    const rect = canvas.getBoundingClientRect()
+    return {
+      x: (e.clientX - rect.left) * (canvas.width / rect.width),
+      y: (e.clientY - rect.top) * (canvas.height / rect.height),
+    }
+  }
+
+  function applyStroke(s) {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (s.tool === 'eraser') { ctx.globalCompositeOperation = 'destination-out'; ctx.strokeStyle = 'rgba(0,0,0,1)' }
+    else { ctx.globalCompositeOperation = 'source-over'; ctx.strokeStyle = s.color }
+    ctx.lineWidth = s.tool === 'eraser' ? s.size * 3 : s.size
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round'
+    ctx.beginPath(); ctx.moveTo(s.from.x, s.from.y); ctx.lineTo(s.to.x, s.to.y); ctx.stroke()
+  }
+
+  function clearCanvasLocal() {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    ctx.globalCompositeOperation = 'source-over'
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+  }
+
+  useEffect(() => {
+    if (!room) return
+    const canvas = canvasRef.current
+    if (canvas) {
+      canvas.width = 800
+      canvas.height = 500
+      clearCanvasLocal()
+    }
+    const channel = supabase
+      .channel('guessdraw-' + room.id)
+      .on('broadcast', { event: 'stroke' }, ({ payload }) => applyStroke(payload))
+      .on('broadcast', { event: 'clear' }, () => clearCanvasLocal())
+      .on('broadcast', { event: 'guess' }, ({ payload }) => {
+        setLog(l => [...l, { from: payload.from, text: payload.text }])
+        if (myRoleRef.current === 'drawer' && wordRef.current && normalize(payload.text) === normalize(wordRef.current)) {
+          winRound(payload.from)
+        }
+      })
+      .on('broadcast', { event: 'roundend' }, ({ payload }) => {
+        setFlash(`Bravo ${payload.winner} ! 🎉`)
+        setTimeout(() => setFlash(''), 2500)
+      })
+      .subscribe((s) => { if (s === 'SUBSCRIBED') subscribed.current = true })
+    channelRef.current = channel
+
+    if (room.active_game?.by === username && room.active_game?.mode === 'duo' && !room.active_game?.drawer) {
+      updateRoom({ active_game: { ...room.active_game, drawer: room.active_game.by, round: 1, scores: {} } })
+    }
+
+    return () => { supabase.removeChannel(channel); channelRef.current = null }
+    // eslint-disable-next-line
+  }, [room?.id])
+
+  useEffect(() => {
+    if (role === 'drawer' && status === 'playing' && mode === 'duo') pickWord()
+    // eslint-disable-next-line
+  }, [role, round, status, mode])
+
+  function sendStroke(payload) {
+    if (channelRef.current && subscribed.current) {
+      channelRef.current.send({ type: 'broadcast', event: 'stroke', payload })
+    }
+  }
+
+  function handleDown(e) {
+    if (role !== 'drawer' || status !== 'playing') return
+    e.preventDefault()
+    isDrawing.current = true
+    lastPoint.current = getPos(e)
+  }
+  function handleMove(e) {
+    if (!isDrawing.current || role !== 'drawer') return
+    e.preventDefault()
+    const pos = getPos(e)
+    const stroke = { from: lastPoint.current, to: pos, color, size: brushSize, tool }
+    applyStroke(stroke)
+    sendStroke(stroke)
+    lastPoint.current = pos
+  }
+  function handleUp() { isDrawing.current = false }
+
+  function sendGuess() {
+    const text = guess.trim()
+    if (!text) return
+    setLog(l => [...l, { from: username, text }])
+    if (channelRef.current && subscribed.current) {
+      channelRef.current.send({ type: 'broadcast', event: 'guess', payload: { from: username, text } })
+    }
+    setGuess('')
+  }
+
+  function winRound(guesserName) {
+    const ag = roomRef.current.active_game || room.active_game
+    const ns = { ...(ag.scores || {}), [guesserName]: ((ag.scores || {})[guesserName] || 0) + 1 }
+    updateRoom({ active_game: { ...ag, scores: ns, drawer: guesserName, round: (ag.round || 1) + 1 } })
+    clearCanvasLocal()
+    if (channelRef.current && subscribed.current) {
+      channelRef.current.send({ type: 'broadcast', event: 'clear', payload: {} })
+      channelRef.current.send({ type: 'broadcast', event: 'roundend', payload: { winner: guesserName } })
+    }
+    setFlash(`Bravo ${guesserName} ! 🎉`)
+    setTimeout(() => setFlash(''), 2500)
+  }
+
+  function giveUp() {
+    const ag = roomRef.current.active_game || room.active_game
+    updateRoom({ active_game: { ...ag, drawer: username, round: (ag.round || 1) + 1 } })
+    clearCanvasLocal()
+    if (channelRef.current && subscribed.current) {
+      channelRef.current.send({ type: 'broadcast', event: 'clear', payload: {} })
+    }
+  }
+
+  if (mode !== 'duo') {
+    return (
+      <div className="game-card-wrapper">
+        <div className="game-card revealed" style={{ cursor: 'default', maxWidth: 420 }}>
+          <PenLine size={48} style={{ color: 'var(--primary)' }} />
+          <p className="game-question" style={{ textAlign: 'center', marginTop: 16 }}>Dessin à deviner</p>
+          <p style={{ color: 'var(--muted-foreground)', textAlign: 'center', marginTop: 8 }}>
+            Ce jeu se joue à deux ! Lance la partie en mode « En couple » pour deviner en direct le dessin de ta moitié 💕
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="guessdraw-wrap">
+      <div className="guessdraw-top">
+        <span className={`gd-role ${role === 'drawer' ? 'is-me' : ''}`}>
+          {role === 'drawer' ? '🎨 Tu dessines' : '👀 Tu devines'}
+        </span>
+        <span className="gd-round">Manche {round}</span>
+        <span className="gd-scores">
+          {Object.entries(scores).map(([n, s]) => (
+            <span key={n} className={n === username ? 'gd-me' : ''}>{n === username ? 'Toi' : n}: {s}</span>
+          ))}
+        </span>
+      </div>
+
+      {flash && <div className="gd-flash">{flash}</div>}
+
+      {role === 'drawer' && (
+        <div className="gd-word">Mot à dessiner : <strong>{word || '...'}</strong></div>
+      )}
+
+      <div className="draw-canvas-box" ref={containerRef}>
+        <canvas
+          ref={canvasRef}
+          className="drawing-canvas"
+          style={{ touchAction: 'none', pointerEvents: role === 'drawer' ? 'auto' : 'none', cursor: role === 'drawer' ? 'crosshair' : 'default' }}
+          onPointerDown={handleDown}
+          onPointerMove={handleMove}
+          onPointerUp={handleUp}
+          onPointerLeave={handleUp}
+        />
+      </div>
+
+      {role === 'drawer' ? (
+        <div className="gd-tools">
+          <button className={`draw-tool-btn ${tool === 'pen' ? 'active' : ''}`} onClick={() => setTool('pen')} title="Crayon"><Pen size={16} /></button>
+          <button className={`draw-tool-btn ${tool === 'eraser' ? 'active' : ''}`} onClick={() => setTool('eraser')} title="Gomme"><Eraser size={16} /></button>
+          <div className="draw-separator" />
+          {COLORS.map(c => (
+            <button key={c} className={`draw-color-dot ${color === c && tool === 'pen' ? 'active' : ''}`} style={{ backgroundColor: c }} onClick={() => { setColor(c); setTool('pen') }} />
+          ))}
+          <div className="draw-separator" />
+          <input type="range" min="1" max="20" value={brushSize} onChange={e => setBrushSize(Number(e.target.value))} className="draw-size-slider" />
+          <div className="draw-separator" />
+          <button className="draw-tool-btn draw-tool-danger" title="Effacer" onClick={() => { clearCanvasLocal(); if (channelRef.current && subscribed.current) channelRef.current.send({ type: 'broadcast', event: 'clear', payload: {} }) }}><Trash2 size={16} /></button>
+        </div>
+      ) : (
+        <div className="gd-guess">
+          <input className="gd-input" placeholder="Ta proposition..." value={guess} onChange={e => setGuess(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') sendGuess() }} />
+          <button className="btn btn-primary" onClick={sendGuess}>Proposer</button>
+          <button className="btn btn-secondary" onClick={giveUp}>Je renonce</button>
+        </div>
+      )}
+
+      <div className="gd-log">
+        {log.length === 0 && <p className="gd-empty">Les propositions apparaîtront ici…</p>}
+        {log.map((m, i) => (
+          <div key={i} className="gd-msg"><strong>{m.from === username ? 'Toi' : m.from}</strong> : {m.text}</div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 const GAME_COMPONENTS = {
   truthdare: TruthOrDare,
   quiz: QuizGame,
@@ -994,6 +1235,7 @@ const GAME_COMPONENTS = {
   roue: RoueGame,
   morpion: MorpionGame,
   preferes: WouldYouRather,
+  guessdraw: GuessDrawGame,
 }
 
 export default function Games() {

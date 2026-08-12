@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Gamepad2, Heart, Sparkles, Shuffle, RotateCcw, AlertCircle, HelpCircle, MessageCircle, Target, BookOpen, Camera, CheckCircle2, XCircle, UserCheck, Cherry, Grid3X3, ArrowLeft, User, Users } from 'lucide-react'
+import { Gamepad2, Heart, Sparkles, Shuffle, RotateCcw, AlertCircle, HelpCircle, MessageCircle, Target, BookOpen, Camera, CheckCircle2, XCircle, UserCheck, Cherry, Grid3X3, ArrowLeft, User, Users, Square, LogOut } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useRoom } from '../context/RoomContext'
 import { notify } from '../lib/notify'
@@ -374,7 +374,7 @@ function QuizGame() {
     const q = shuffled[index]
     return (
       <div className="game-card-wrapper">
-        <div className="game-card revealed" style={{ cursor: 'default', maxWidth: 440 }}>
+        <div className="game-card revealed quiz-fade" key={index} style={{ cursor: 'default', maxWidth: 440 }}>
           <p style={{ fontSize: 13, color: 'var(--muted-foreground)', marginBottom: 12 }}>
             Question {index + 1}/{shuffled.length} · Devine la réponse de {session?.creator}
           </p>
@@ -394,11 +394,11 @@ function QuizGame() {
 
   const q = shuffled[index]
   return (
-    <div className="game-card-wrapper">
-      <div className="game-card revealed" style={{ cursor: 'default', maxWidth: 440 }}>
-        <p style={{ fontSize: 13, color: 'var(--muted-foreground)', marginBottom: 12 }}>
-          Question {index + 1}/{shuffled.length} · Choisis ta réponse
-        </p>
+      <div className="game-card-wrapper">
+        <div className="game-card revealed quiz-fade" key={index} style={{ cursor: 'default', maxWidth: 440 }}>
+          <p style={{ fontSize: 13, color: 'var(--muted-foreground)', marginBottom: 12 }}>
+            Question {index + 1}/{shuffled.length} · Choisis ta réponse
+          </p>
         <p className="game-question" style={{ textAlign: 'center', marginBottom: 20 }}>{q.q}</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {q.a.map((opt, i) => (
@@ -835,6 +835,7 @@ function MorpionGame() {
 
   const w = calculateMorpionWinner(board)
   const status = w === 'draw' ? 'Match nul !' : w ? `${w} a gagné !` : xIsNext ? 'Tour de X' : 'Tour de O'
+  const myTurn = !!mySymbol && !w && ((xIsNext && mySymbol === 'X') || (!xIsNext && mySymbol === 'O'))
 
   return (
     <>
@@ -847,7 +848,7 @@ function MorpionGame() {
         <div className="game-card revealed" style={{ cursor: 'default', flexDirection: 'column', maxWidth: 320 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', marginBottom: 12, fontSize: 14, color: 'var(--muted-foreground)' }}>
             <span>X: {scores['X']}</span>
-            <span style={{ fontWeight: 700, color: w ? 'var(--primary)' : 'var(--foreground)' }}>{status}</span>
+            <span className={`morpion-status ${w ? 'win' : ''} ${myTurn ? 'my-turn' : ''}`}>{status}</span>
             <span>O: {scores['O']}</span>
           </div>
           <div className="morpion-board">
@@ -1031,6 +1032,24 @@ export default function Games() {
     }
   }
 
+  function leaveGame() {
+    if (room?.active_game) {
+      notify(room.id, 'game', `a quitté la partie 🚪`, username)
+      updateRoom({ active_game: { ...room.active_game, leftBy: username } })
+    }
+    setActive(null)
+    setSearchParams({})
+  }
+
+  function endGame() {
+    if (room?.active_game && room?.active_game?.by === username) {
+      notify(room.id, 'game', `a arrêté la partie 🛑`, username)
+      updateRoom({ active_game: { ...room.active_game, status: 'ended', endedBy: username } })
+    }
+    setActive(null)
+    setSearchParams({})
+  }
+
   function handleCreateSelect(gameKey) {
     if (createMode === 'duo' || createMode === 'solo') {
       openGame(gameKey, createMode)
@@ -1046,6 +1065,41 @@ export default function Games() {
     const gameStatus = room?.active_game?.status || 'playing'
     const iAmCreator = room?.active_game?.by === username
     const isDuoWaiting = gameMode === 'duo' && gameStatus === 'waiting'
+    const leftBy = room?.active_game?.leftBy || null
+    const isEnded = gameStatus === 'ended'
+    const endedBy = room?.active_game?.endedBy || null
+
+    if (leftBy || isEnded) {
+      return (
+        <div className="page games-page">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+            <button className="btn-icon" onClick={closeGame}>
+              <ArrowLeft size={22} />
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
+              <div style={{ display: 'inline-flex', padding: 8, borderRadius: 'var(--radius)', background: `${game?.color}18`, color: game?.color }}>
+                {game && <game.icon size={20} />}
+              </div>
+              <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>{game?.label}</h2>
+            </div>
+          </div>
+          <div className="game-card-wrapper">
+            <div className="game-card revealed" style={{ cursor: 'default', maxWidth: 400 }}>
+              <Gamepad2 size={48} style={{ color: 'var(--primary)' }} />
+              <p style={{ marginTop: 16, fontSize: 18, fontWeight: 600, textAlign: 'center' }}>
+                {isEnded ? `${endedBy} a arrêté la partie 🛑` : `${leftBy} a quitté la partie 🚪`}
+              </p>
+              <p style={{ color: 'var(--muted-foreground)', marginTop: 8, textAlign: 'center', fontSize: 14 }}>
+                {isEnded ? 'La partie est terminée.' : 'La partie est fermée pour tout le monde.'}
+              </p>
+              <div className="game-actions" style={{ marginTop: 20 }}>
+                <button className="btn btn-primary" onClick={closeGame}>Fermer</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )
+    }
 
     if (isDuoWaiting && !iAmCreator) {
       return (
@@ -1127,6 +1181,18 @@ export default function Games() {
           </div>
         </div>
         <GameComponent />
+        {gameMode === 'duo' && gameStatus === 'playing' && (
+          <div className="game-actions" style={{ marginTop: 18, gap: 10, justifyContent: 'center' }}>
+            {iAmCreator && (
+              <button className="btn btn-danger" onClick={endGame}>
+                <Square size={16} /> Arrêter la partie
+              </button>
+            )}
+            <button className="btn btn-secondary" onClick={leaveGame}>
+              <LogOut size={16} /> Quitter la partie
+            </button>
+          </div>
+        )}
       </div>
     )
   }

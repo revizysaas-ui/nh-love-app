@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
-import { Pen, Eraser, Undo2, Redo2, Trash2, Palette, Download, Save } from 'lucide-react'
+import { Pen, Eraser, Undo2, Redo2, Trash2, Palette, Download, Save, ZoomIn, ZoomOut } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useRoom } from '../context/RoomContext'
 import { notify } from '../lib/notify'
@@ -15,6 +15,7 @@ export default function DrawingBoard() {
   const [brushSize, setBrushSize] = useState(4)
   const [tool, setTool] = useState('pen')
   const [showColors, setShowColors] = useState(false)
+  const [zoom, setZoom] = useState(1)
   const [saved, setSaved] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -221,6 +222,12 @@ export default function DrawingBoard() {
         </button>
         {saving && <span className="draw-saving">Sauvegarde...</span>}
         <div className="draw-toolbar-right">
+          <div className="draw-separator" />
+          <button className="draw-tool-btn" onClick={() => setZoom(z => Math.max(0.5, Math.round((z - 0.25) * 100) / 100))} title="Dézoomer"><ZoomOut size={16} /></button>
+          <span className="draw-zoom-label">{Math.round(zoom * 100)}%</span>
+          <button className="draw-tool-btn" onClick={() => setZoom(z => Math.min(3, Math.round((z + 0.25) * 100) / 100))} title="Zoomer"><ZoomIn size={16} /></button>
+          <button className="draw-tool-btn" onClick={() => setZoom(1)} title="Réinitialiser le zoom" style={{ fontSize: 13, fontWeight: 600 }}>1×</button>
+          <div className="draw-separator" />
           <div className="draw-size-preview" style={{ width: Math.max(4, brushSize), height: Math.max(4, brushSize) }} />
           <input
             type="range"
@@ -252,6 +259,7 @@ export default function DrawingBoard() {
         <canvas
           ref={canvasRef}
           className="drawing-canvas"
+          style={{ transform: `scale(${zoom})`, transformOrigin: 'top left', touchAction: 'none' }}
           onMouseDown={startDraw}
           onMouseMove={draw}
           onMouseUp={stopDraw}

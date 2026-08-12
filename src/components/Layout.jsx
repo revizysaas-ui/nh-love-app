@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { Settings, Sun, Moon, Lock, Heart, Play, Pause, SkipForward, X, Music } from 'lucide-react'
+import { Settings, Sun, Moon, Lock, Heart, Play, Pause, SkipForward, X, Music, ChevronDown } from 'lucide-react'
 import { useState, useEffect, useRef, Suspense } from 'react'
 import { useRoom } from '../context/RoomContext'
 import { usePlayer } from '../context/PlayerContext'
@@ -12,7 +12,15 @@ export default function Layout() {
   const { currentSong, playing, togglePlay, nextSong, stop } = usePlayer()
   const [dark, setDark] = useState(() => localStorage.getItem('nh_dark') === 'true')
   const [showExitPopup, setShowExitPopup] = useState(false)
+  const [miniCollapsed, setMiniCollapsed] = useState(() => {
+    try { return localStorage.getItem('nh_mini_collapsed') === '1' } catch { return false }
+  })
   const wasOnPlaylist = useRef(false)
+
+  useEffect(() => {
+    document.body.classList.toggle('mini-open', !!currentSong && location.pathname !== '/playlist' && !miniCollapsed)
+    try { localStorage.setItem('nh_mini_collapsed', miniCollapsed ? '1' : '0') } catch {}
+  }, [currentSong, location.pathname, miniCollapsed])
 
   useEffect(() => {
     document.body.classList.toggle('dark', dark)
@@ -53,7 +61,7 @@ export default function Layout() {
         </Suspense>
       </main>
 
-      {showMiniPlayer && (
+      {showMiniPlayer && !miniCollapsed && (
         <div className="mini-player" onClick={() => navigate('/playlist')}>
           <Music size={16} className="mini-player-icon" />
           <span className="mini-player-title">{currentSong.title}</span>
@@ -63,8 +71,17 @@ export default function Layout() {
             </button>
             <button className="mini-player-btn" onClick={nextSong} title="Suivant"><SkipForward size={16} /></button>
             <button className="mini-player-btn mini-player-stop" onClick={stop} title="Arrêter"><X size={16} /></button>
+            <button className="mini-player-btn mini-player-collapse" onClick={() => setMiniCollapsed(true)} title="Réduire le lecteur">
+              <ChevronDown size={16} />
+            </button>
           </div>
         </div>
+      )}
+
+      {showMiniPlayer && miniCollapsed && (
+        <button className="mini-player-fab" onClick={() => setMiniCollapsed(false)} title="Afficher le lecteur">
+          <Music size={18} />
+        </button>
       )}
 
       {showExitPopup && (

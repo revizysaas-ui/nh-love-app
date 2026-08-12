@@ -16,6 +16,9 @@ export default function DrawingBoard() {
   const [tool, setTool] = useState('pen')
   const [showColors, setShowColors] = useState(false)
   const [zoom, setZoom] = useState(1)
+  const [pan, setPan] = useState({ x: 0, y: 0 })
+  const [pinching, setPinching] = useState(false)
+  const pinchStart = useRef({ dist: 0, zoom: 1, pan: { x: 0, y: 0 }, cx: 0, cy: 0 })
   const [saved, setSaved] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -113,6 +116,55 @@ export default function DrawingBoard() {
     setLoading(false)
   }
 
+  function getTouchDist(e) {
+    const dx = e.touches[0].clientX - e.touches[1].clientX
+    const dy = e.touches[0].clientY - e.touches[1].clientY
+    return Math.hypot(dx, dy)
+  }
+
+  function getTouchCenter(e) {
+    return {
+      cx: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+      cy: (e.touches[0].clientY + e.touches[1].clientY) / 2,
+    }
+  }
+
+  function handleTouchStart(e) {
+    if (e.touches.length === 2) {
+      e.preventDefault()
+      setIsDrawing(false)
+      setPinching(true)
+      const { cx, cy } = getTouchCenter(e)
+      pinchStart.current = { dist: getTouchDist(e), zoom, pan: { ...pan }, cx, cy }
+      return
+    }
+    if (e.touches.length === 1) startDraw(e)
+  }
+
+  function handleTouchMove(e) {
+    if (pinching && e.touches.length === 2) {
+      e.preventDefault()
+      const ratio = getTouchDist(e) / pinchStart.current.dist
+      const next = Math.min(3, Math.max(0.5, Math.round((pinchStart.current.zoom * ratio) * 100) / 100))
+      setZoom(next)
+      const { cx, cy } = getTouchCenter(e)
+      setPan({
+        x: pinchStart.current.pan.x + (cx - pinchStart.current.cx),
+        y: pinchStart.current.pan.y + (cy - pinchStart.current.cy),
+      })
+      return
+    }
+    draw(e)
+  }
+
+  function handleTouchEnd(e) {
+    if (pinching) {
+      if (e.touches.length < 2) setPinching(false)
+      return
+    }
+    stopDraw(e)
+  }
+
   function startDraw(e) {
     e.preventDefault()
     const pos = getPos(e)
@@ -125,7 +177,7 @@ export default function DrawingBoard() {
 
   function draw(e) {
     e.preventDefault()
-    if (!isDrawing) return
+    if (!isDrawing || pinching) return
     const pos = getPos(e)
     const ctx = canvasRef.current.getContext('2d')
     if (tool === 'eraser') {
@@ -226,7 +278,7 @@ export default function DrawingBoard() {
           <button className="draw-tool-btn" onClick={() => setZoom(z => Math.max(0.5, Math.round((z - 0.25) * 100) / 100))} title="Dézoomer"><ZoomOut size={16} /></button>
           <span className="draw-zoom-label">{Math.round(zoom * 100)}%</span>
           <button className="draw-tool-btn" onClick={() => setZoom(z => Math.min(3, Math.round((z + 0.25) * 100) / 100))} title="Zoomer"><ZoomIn size={16} /></button>
-          <button className="draw-tool-btn" onClick={() => setZoom(1)} title="Réinitialiser le zoom" style={{ fontSize: 13, fontWeight: 600 }}>1×</button>
+          <button className="draw-tool-btn" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }) }} title="Réinitialiser le zoom" style={{ fontSize: 13, fontWeight: 600 }}>1×</button>
           <div className="draw-separator" />
           <div className="draw-size-preview" style={{ width: Math.max(4, brushSize), height: Math.max(4, brushSize) }} />
           <input
@@ -259,14 +311,14 @@ export default function DrawingBoard() {
         <canvas
           ref={canvasRef}
           className="drawing-canvas"
-          style={{ transform: `scale(${zoom})`, transformOrigin: 'top left', touchAction: 'none' }}
+          style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: 'top left', touchAction: 'none' }}
           onMouseDown={startDraw}
           onMouseMove={draw}
           onMouseUp={stopDraw}
           onMouseLeave={stopDraw}
-          onTouchStart={startDraw}
-          onTouchMove={draw}
-          onTouchEnd={stopDraw}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
         />
       </div>
 

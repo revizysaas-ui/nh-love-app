@@ -5,7 +5,7 @@ export default async function handler(req, res) {
   const KEY = process.env.GEMINI_API_KEY
   if (!KEY) return res.status(500).json({ error: 'GEMINI_API_KEY non configurée' })
 
-  const MODEL = 'gemini-2.0-flash'
+  const MODEL = 'gemini-2.5-flash'
   const { system, prompt, temperature = 0.9, maxTokens = 1200 } = req.body || {}
   if (!prompt) return res.status(400).json({ error: 'Champ prompt requis' })
 

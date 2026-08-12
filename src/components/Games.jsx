@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Gamepad2, Heart, Sparkles, Shuffle, RotateCcw, AlertCircle, HelpCircle, MessageCircle, Target, BookOpen, Camera, CheckCircle2, XCircle, UserCheck, Cherry, Grid3X3, ArrowLeft, User, Users, Square, LogOut, PenLine, Pen, Eraser, Trash2 } from 'lucide-react'
+import { Gamepad2, Heart, Sparkles, Shuffle, RotateCcw, AlertCircle, HelpCircle, MessageCircle, Target, BookOpen, Camera, CheckCircle2, XCircle, UserCheck, Cherry, Grid3X3, ArrowLeft, User, Users, Square, LogOut, PenLine, Pen, Eraser, Trash2, ZoomIn, ZoomOut } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useRoom } from '../context/RoomContext'
 import { notify } from '../lib/notify'
@@ -995,6 +995,9 @@ function GuessDrawGame() {
   const subscribed = useRef(false)
   const lastPoint = useRef(null)
   const isDrawing = useRef(false)
+  const pointersMap = useRef(new Map())
+  const pinching = useRef(false)
+  const pinchStart = useRef({ dist: 1, zoom: 1, pan: { x: 0, y: 0 }, cx: 0, cy: 0 })
   const wordRef = useRef('')
   const roomRef = useRef(room)
   roomRef.current = room
@@ -1013,6 +1016,8 @@ function GuessDrawGame() {
   const [guess, setGuess] = useState('')
   const [log, setLog] = useState([])
   const [flash, setFlash] = useState('')
+  const [zoom, setZoom] = useState(1)
+  const [pan, setPan] = useState({ x: 0, y: 0 })
 
   const COLORS = ['#8a79ab', '#e74c6f', '#4a90d9', '#2ecc71', '#f39c12', '#2c3e50', '#e74c3c']
   myRoleRef.current = role
@@ -1100,22 +1105,58 @@ function GuessDrawGame() {
     }
   }
 
-  function handleDown(e) {
-    if (role !== 'drawer' || status !== 'playing') return
-    e.preventDefault()
-    isDrawing.current = true
-    lastPoint.current = getPos(e)
+  function getDist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y) }
+  function getCenter(a, b) { return { cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2 } }
+
+  function handlePointerDown(e) {
+    pointersMap.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    if (pointersMap.current.size === 2) {
+      e.preventDefault()
+      isDrawing.current = false
+      pinching.current = true
+      const pts = [...pointersMap.current.values()]
+      const { cx, cy } = getCenter(pts[0], pts[1])
+      pinchStart.current = { dist: getDist(pts[0], pts[1]), zoom, pan: { ...pan }, cx, cy }
+      return
+    }
+    if (pointersMap.current.size === 1 && role === 'drawer' && status === 'playing') {
+      e.preventDefault()
+      isDrawing.current = true
+      lastPoint.current = getPos(e)
+    }
   }
-  function handleMove(e) {
-    if (!isDrawing.current || role !== 'drawer') return
-    e.preventDefault()
-    const pos = getPos(e)
-    const stroke = { from: lastPoint.current, to: pos, color, size: brushSize, tool }
-    applyStroke(stroke)
-    sendStroke(stroke)
-    lastPoint.current = pos
+
+  function handlePointerMove(e) {
+    if (!pointersMap.current.has(e.pointerId)) return
+    pointersMap.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    if (pinching.current && pointersMap.current.size >= 2) {
+      e.preventDefault()
+      const pts = [...pointersMap.current.values()]
+      const ratio = getDist(pts[0], pts[1]) / pinchStart.current.dist
+      const next = Math.min(4, Math.max(0.5, Math.round((pinchStart.current.zoom * ratio) * 100) / 100))
+      setZoom(next)
+      const { cx, cy } = getCenter(pts[0], pts[1])
+      setPan({
+        x: pinchStart.current.pan.x + (cx - pinchStart.current.cx),
+        y: pinchStart.current.pan.y + (cy - pinchStart.current.cy),
+      })
+      return
+    }
+    if (isDrawing.current && role === 'drawer') {
+      e.preventDefault()
+      const pos = getPos(e)
+      const stroke = { from: lastPoint.current, to: pos, color, size: brushSize, tool }
+      applyStroke(stroke)
+      sendStroke(stroke)
+      lastPoint.current = pos
+    }
   }
-  function handleUp() { isDrawing.current = false }
+
+  function handlePointerUp(e) {
+    pointersMap.current.delete(e.pointerId)
+    if (pinching.current && pointersMap.current.size < 2) pinching.current = false
+    if (pointersMap.current.size === 0) isDrawing.current = false
+  }
 
   function sendGuess() {
     const text = guess.trim()
@@ -1183,15 +1224,23 @@ function GuessDrawGame() {
         <div className="gd-word">Mot à dessiner : <strong>{word || '...'}</strong></div>
       )}
 
+      <div className="gd-zoom">
+        <button className="draw-tool-btn" onClick={() => setZoom(z => Math.max(0.5, Math.round((z - 0.25) * 100) / 100))} title="Dézoomer"><ZoomOut size={16} /></button>
+        <span className="draw-zoom-label">{Math.round(zoom * 100)}%</span>
+        <button className="draw-tool-btn" onClick={() => setZoom(z => Math.min(4, Math.round((z + 0.25) * 100) / 100))} title="Zoomer"><ZoomIn size={16} /></button>
+        <button className="draw-tool-btn" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }) }} title="Réinitialiser" style={{ fontSize: 13, fontWeight: 600 }}>1×</button>
+      </div>
+
       <div className="draw-canvas-box" ref={containerRef}>
         <canvas
           ref={canvasRef}
           className="drawing-canvas"
-          style={{ touchAction: 'none', pointerEvents: role === 'drawer' ? 'auto' : 'none', cursor: role === 'drawer' ? 'crosshair' : 'default' }}
-          onPointerDown={handleDown}
-          onPointerMove={handleMove}
-          onPointerUp={handleUp}
-          onPointerLeave={handleUp}
+          style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: 'top left', touchAction: 'none', pointerEvents: 'auto', cursor: role === 'drawer' ? 'crosshair' : 'default' }}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerLeave={handlePointerUp}
+          onPointerCancel={handlePointerUp}
         />
       </div>
 

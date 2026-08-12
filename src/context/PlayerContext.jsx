@@ -54,6 +54,7 @@ export function PlayerProvider({ children }) {
   const [playing, setPlaying] = useState(false)
   const [loop, setLoop] = useState(false)
   const [repeat, setRepeat] = useState(false)
+  const [incomingShare, setIncomingShare] = useState(null)
 
   const ytRef = useRef(null)           // YT.Player instance (persiste entre les pages)
   const ytReadyRef = useRef(false)
@@ -307,6 +308,51 @@ export function PlayerProvider({ children }) {
     }
   }, [room?.id])
 
+  const shareChannelRef = useRef(null)
+  useEffect(() => {
+    if (!room) return
+    const ch = supabase.channel('music-share-' + room.id)
+      .on('broadcast', { event: 'share' }, ({ payload }) => {
+        if (payload?.from && payload.from !== username) {
+          setIncomingShare({ from: payload.from, song: payload.song })
+        }
+      })
+      .subscribe()
+    shareChannelRef.current = ch
+    return () => {
+      supabase.removeChannel(ch)
+      shareChannelRef.current = null
+    }
+  }, [room?.id])
+
+  function shareCurrentSong() {
+    if (!currentSong) return
+    const ch = shareChannelRef.current
+    if (ch) ch.send({ type: 'broadcast', event: 'share', payload: { from: username, song: { id: currentSong.id, url: currentSong.url, title: currentSong.title } } })
+    showToast('Musique partagée 🎵')
+  }
+
+  async function acceptShare() {
+    const sh = incomingShare
+    if (!sh) return
+    const list = songsRef.current
+    const idx = list.findIndex(s => s.id === sh.song.id)
+    if (idx >= 0) {
+      playSong(idx)
+    } else {
+      await add(sh.song.url, sh.song.title)
+      setTimeout(() => {
+        const i = songsRef.current.findIndex(s => s.url === sh.song.url)
+        if (i >= 0) playSong(i)
+      }, 400)
+    }
+    setIncomingShare(null)
+  }
+
+  function dismissShare() {
+    setIncomingShare(null)
+  }
+
   useEffect(() => {
     setCurrentId(null)
     setPlaying(false)
@@ -444,6 +490,10 @@ export function PlayerProvider({ children }) {
     registerNativeEl,
     handleNativeEnded,
     syncPlaying,
+    shareCurrentSong,
+    incomingShare,
+    acceptShare,
+    dismissShare,
   }
 
   return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>

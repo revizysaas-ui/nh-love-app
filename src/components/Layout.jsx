@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { Settings, Sun, Moon, Lock, Heart, Play, Pause, SkipForward, X, Music, ChevronDown } from 'lucide-react'
+import { Settings, Sun, Moon, Lock, Heart, Play, Pause, SkipForward, X, Music, ChevronDown, Share2 } from 'lucide-react'
 import { useState, useEffect, useRef, Suspense } from 'react'
 import { useRoom } from '../context/RoomContext'
 import { usePlayer } from '../context/PlayerContext'
@@ -9,7 +9,7 @@ export default function Layout() {
   const { room } = useRoom()
   const location = useLocation()
   const navigate = useNavigate()
-  const { currentSong, playing, togglePlay, nextSong, stop } = usePlayer()
+  const { currentSong, playing, togglePlay, nextSong, stop, shareCurrentSong, incomingShare, acceptShare, dismissShare } = usePlayer()
   const [dark, setDark] = useState(() => localStorage.getItem('nh_dark') === 'true')
   const [showExitPopup, setShowExitPopup] = useState(false)
   const [miniCollapsed, setMiniCollapsed] = useState(() => {
@@ -70,6 +70,9 @@ export default function Layout() {
               {playing ? <Pause size={16} /> : <Play size={16} />}
             </button>
             <button className="mini-player-btn" onClick={nextSong} title="Suivant"><SkipForward size={16} /></button>
+            <button className="mini-player-btn mini-player-share" onClick={shareCurrentSong} title="Partager la musique">
+              <Share2 size={16} />
+            </button>
             <button className="mini-player-btn mini-player-stop" onClick={stop} title="Arrêter"><X size={16} /></button>
             <button className="mini-player-btn mini-player-collapse" onClick={() => setMiniCollapsed(true)} title="Réduire le lecteur">
               <ChevronDown size={16} />
@@ -82,6 +85,17 @@ export default function Layout() {
         <button className="mini-player-fab" onClick={() => setMiniCollapsed(false)} title="Afficher le lecteur">
           <Music size={18} />
         </button>
+      )}
+
+      {incomingShare && (
+        <div className="share-toast">
+          <Music size={18} className="share-toast-icon" />
+          <div className="share-toast-body">
+            <strong>{incomingShare.from}</strong> partage « {incomingShare.song?.title} »
+          </div>
+          <button className="btn btn-primary btn-sm" onClick={acceptShare}>Écouter</button>
+          <button className="btn btn-sm" onClick={dismissShare}><X size={14} /></button>
+        </div>
       )}
 
       {showExitPopup && (

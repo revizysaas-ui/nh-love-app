@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useLayoutEffect } from 'react'
-import { Music, Plus, Trash2, Play, Pause, Video, SkipBack, SkipForward, Repeat, Repeat1, X } from 'lucide-react'
+import { Music, Plus, Trash2, Play, Pause, Video, SkipBack, SkipForward, Repeat, Repeat1, X, Share2 } from 'lucide-react'
 import { usePlayer, getSongType, spotifyEmbedUrl } from '../context/PlayerContext'
 
 export default function Playlist() {
@@ -24,6 +24,7 @@ export default function Playlist() {
     registerNativeEl,
     handleNativeEnded,
     syncPlaying,
+    shareCurrentSong,
   } = usePlayer()
 
   const [url, setUrl] = useState('')
@@ -105,6 +106,7 @@ export default function Playlist() {
         <button className="ctrl-btn" onClick={nextSong} disabled={!currentSong} title="Suivant"><SkipForward size={18} /></button>
         <button className={`ctrl-btn ${loop ? 'active' : ''}`} onClick={() => { setRepeat(false); setLoop(l => !l) }} title="Boucler la playlist"><Repeat size={16} /></button>
         <button className={`ctrl-btn ${repeat ? 'active' : ''}`} onClick={() => { setLoop(false); setRepeat(r => !r) }} title="Répéter la musique"><Repeat1 size={16} /></button>
+        <button className="ctrl-btn ctrl-share" onClick={shareCurrentSong} disabled={!currentSong} title="Partager la musique"><Share2 size={16} /></button>
         <button className="ctrl-btn" onClick={stop} disabled={!currentSong} title="Arrêter"><X size={16} /></button>
       </div>
 

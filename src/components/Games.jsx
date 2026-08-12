@@ -9,9 +9,7 @@ import { getDailyQuestion } from '../data/daily-questions'
 import CULTURE_QUESTIONS from '../data/culture-questions'
 import DEFIS_DATA from '../data/defis'
 import DRAW_WORDS from '../data/draw-words'
-import AIGenButton from './AIGenButton'
-import { generateWithAI } from '../lib/ai'
-import { truthOrDarePrompt, quizPrompt, dailyPrompt, defisPrompt, culturePrompt, wyrPrompt, rouePrompt, drawWordsPrompt } from '../lib/aiPrompts'
+import { warmupAIPool, takeTruthDare, takeQuiz, takeDaily, takeDefis, takeCulture, takeWYR, takeRoue, takeDrawWord } from '../lib/aiPool'
 
 const GAMES_LIST = [
   { key: 'truthdare', icon: Heart, label: 'Vérité ou Action', color: '#e74c8b', desc: 'Osez tout vous dire !' },
@@ -54,8 +52,6 @@ function TruthOrDare() {
   const [questions, setQuestions] = useState([])
   const [loading, setLoading] = useState(true)
   const [usedIds, setUsedIds] = useState([])
-  const [generating, setGenerating] = useState(false)
-  const [aiError, setAiError] = useState('')
   const notifiedRef = useRef(false)
 
   const currentCard = gs.currentCard || null
@@ -70,6 +66,12 @@ function TruthOrDare() {
     const { data } = await supabase.from('questions').select('*')
     if (data) setQuestions(data)
     setLoading(false)
+    refillAI(cardDifficulty)
+  }
+
+  function refillAI(diff) {
+    const cards = takeTruthDare(diff, 6)
+    if (cards.length) setQuestions(prev => [...prev, ...cards])
   }
 
   function pick() {
@@ -83,6 +85,7 @@ function TruthOrDare() {
     const p = pool[Math.floor(Math.random() * pool.length)]
     setUsedIds(prev => [...prev, p.id])
     updateGameState({ state: { currentCard: p, type: cardType, difficulty: cardDifficulty, revealed: false, picker: username } })
+    if (pool.length - 1 < 3) refillAI(cardDifficulty)
   }
 
   function reveal() {
@@ -90,19 +93,6 @@ function TruthOrDare() {
   }
 
   const diff = DIFFICULTIES.find(d => d.key === cardDifficulty)
-
-  async function generateCards() {
-    setGenerating(true); setAiError('')
-    try {
-      const res = await generateWithAI(truthOrDarePrompt(cardDifficulty, 12))
-      const cards = (res?.cards || [])
-        .filter(c => c && c.question && (c.type === 'truth' || c.type === 'dare'))
-        .map((c, i) => ({ id: `ai-${Date.now()}-${i}`, type: c.type, difficulty: cardDifficulty, question: c.question }))
-      if (cards.length) setQuestions(prev => [...prev, ...cards])
-    } catch (e) {
-      setAiError(e.message || "Génération impossible")
-    } finally { setGenerating(false) }
-  }
 
   return (
     <>
@@ -167,18 +157,14 @@ function TruthOrDare() {
 
       <div className="game-actions">
         {canPlay ? (
-          <>
-            <button className="btn btn-primary btn-lg" onClick={!revealed ? reveal : pick}>
-              <Shuffle size={20} />
-              {revealed ? 'Suivant' : 'Révéler'}
-            </button>
-            <AIGenButton onClick={generateCards} loading={generating} label="Cartes IA ✨" />
-          </>
+          <button className="btn btn-primary btn-lg" onClick={!revealed ? reveal : pick}>
+            <Shuffle size={20} />
+            {revealed ? 'Suivant' : 'Révéler'}
+          </button>
         ) : (
           <p style={{ color: 'var(--muted-foreground)', fontSize: 14 }}>Le créateur contrôle la partie</p>
         )}
       </div>
-      {aiError && <p className="ai-error">{aiError}</p>}
     </>
   )
 }
@@ -192,8 +178,6 @@ function QuizGame() {
   const [answers, setAnswers] = useState([])
   const [score, setScore] = useState(0)
   const [partnerAnswers, setPartnerAnswers] = useState([])
-  const [generating, setGenerating] = useState(false)
-  const [aiError, setAiError] = useState('')
 
   useEffect(() => {
     if (!room) return
@@ -248,7 +232,8 @@ function QuizGame() {
   }
 
   async function startSession() {
-    const picked = [...QUIZ_QUESTIONS].sort(() => Math.random() - 0.5).slice(0, 8)
+    let picked = takeQuiz(8)
+    if (!picked.length) picked = [...QUIZ_QUESTIONS].sort(() => Math.random() - 0.5).slice(0, 8)
     setShuffled(picked)
     setIndex(0)
     setAnswers([])
@@ -262,30 +247,6 @@ function QuizGame() {
     }).select().single()
 
     setSession(data)
-  }
-
-  async function startAISession() {
-    setGenerating(true); setAiError('')
-    try {
-      const res = await generateWithAI(quizPrompt(8))
-      const picked = (res?.questions || [])
-        .filter(q => q && q.q && Array.isArray(q.a) && q.a.length >= 2)
-        .slice(0, 8)
-      if (!picked.length) { setAiError("Aucune question générée"); return }
-      setShuffled(picked)
-      setIndex(0)
-      setAnswers([])
-      setPhase('answering')
-      notify(room.id, 'game', 'a lancé le Quiz Amour 🧠', username)
-      const { data } = await supabase.from('quiz_sessions').insert({
-        room_id: room.id,
-        creator: username,
-        questions: picked,
-      }).select().single()
-      setSession(data)
-    } catch (e) {
-      setAiError(e.message || "Génération impossible")
-    } finally { setGenerating(false) }
   }
 
   function handleCreatorAnswer(choiceIndex) {
@@ -384,10 +345,7 @@ function QuizGame() {
           <p>Quiz Amour</p>
           <span>8 questions pour deviner ce que je pense</span>
         </div>
-        <div className="game-actions">
-          <AIGenButton onClick={startAISession} loading={generating} label="Quiz IA ✨" />
-        </div>
-        {aiError && <p className="ai-error">{aiError}</p>}
+        <div className="game-actions" />
       </div>
     )
   }
@@ -469,29 +427,16 @@ function QuizGame() {
 
 function DailyGame() {
   const [q, setQ] = useState('')
-  const [generating, setGenerating] = useState(false)
-  const [aiError, setAiError] = useState('')
-  useEffect(() => { setQ(getDailyQuestion()) }, [])
-
-  async function generateDaily() {
-    setGenerating(true); setAiError('')
-    try {
-      const res = await generateWithAI(dailyPrompt())
-      if (res?.question) setQ(res.question)
-    } catch (e) {
-      setAiError(e.message || "Génération impossible")
-    } finally { setGenerating(false) }
-  }
+  useEffect(() => {
+    const ai = takeDaily()
+    setQ(ai.length ? ai[0] : getDailyQuestion())
+  }, [])
 
   return (
     <div className="game-card-wrapper">
       <div className="game-card revealed" style={{ cursor: 'default', maxWidth: 440 }}>
         <MessageCircle size={32} />
         <p className="game-question" style={{ textAlign: 'center', marginTop: 12 }}>{q}</p>
-        <div className="game-actions">
-          <AIGenButton onClick={generateDaily} loading={generating} label="Nouvelle question ✨" />
-        </div>
-        {aiError && <p className="ai-error">{aiError}</p>}
       </div>
     </div>
   )
@@ -504,35 +449,30 @@ function DefisGame() {
   const fileRef = useRef(null)
   const notifiedRef = useRef(false)
   const [extraDefis, setExtraDefis] = useState([])
-  const [generating, setGenerating] = useState(false)
-  const [aiError, setAiError] = useState('')
 
   const currentDefi = gs.currentDefi || null
   const defiIndex = gs.defiIndex ?? null
 
   const allDefis = [...DEFIS_DATA, ...extraDefis]
 
+  useEffect(() => { refillDefis() }, [])
+
+  function refillDefis() {
+    const list = takeDefis(6)
+    if (list.length) setExtraDefis(prev => [...prev, ...list])
+  }
+
   function pick() {
     if (!notifiedRef.current && room) {
       notify(room.id, 'game', 'a lancé les Défis 🎯', username)
       notifiedRef.current = true
     }
+    if (extraDefis.length < 3) refillDefis()
     let idx
     do {
       idx = Math.floor(Math.random() * allDefis.length)
     } while (idx === defiIndex && allDefis.length > 1)
     updateGameState({ state: { currentDefi: allDefis[idx], defiIndex: idx, completedBy: null } })
-  }
-
-  async function generateDefis() {
-    setGenerating(true); setAiError('')
-    try {
-      const res = await generateWithAI(defisPrompt(8))
-      const list = (res?.defis || []).map(d => ({ defi: d.defi })).filter(d => d.defi)
-      if (list.length) setExtraDefis(prev => [...prev, ...list])
-    } catch (e) {
-      setAiError(e.message || "Génération impossible")
-    } finally { setGenerating(false) }
   }
 
   function complete() {
@@ -585,10 +525,8 @@ function DefisGame() {
             <Shuffle size={20} />
             {currentDefi ? 'Nouveau défi' : 'Un défi !'}
           </button>
-          <AIGenButton onClick={generateDefis} loading={generating} label="Idées IA ✨" />
         </div>
       )}
-      {aiError && <p className="ai-error">{aiError}</p>}
     </>
   )
 }
@@ -604,31 +542,14 @@ function CultureGame() {
   const partnerAnswer = partnerKey ? gs[partnerKey] : null
   const done = gs.done || false
   const started = gs.started || false
-  const [generating, setGenerating] = useState(false)
-  const [aiError, setAiError] = useState('')
 
   const bothAnswered = myAnswer !== null && partnerAnswer !== null
 
   function start() {
-    const s = [...CULTURE_QUESTIONS].sort(() => Math.random() - 0.5).slice(0, 8)
+    let s = takeCulture(8)
+    if (!s.length) s = [...CULTURE_QUESTIONS].sort(() => Math.random() - 0.5).slice(0, 8)
     updateGameState({ state: { questions: s, index: 0, done: false, started: true } })
     notify(room.id, 'game', 'a lancé Culture G 📚', username)
-  }
-
-  async function startAI() {
-    setGenerating(true); setAiError('')
-    try {
-      const res = await generateWithAI(culturePrompt(8))
-      const qs = (res?.questions || []).filter(q => q && q.q).slice(0, 8)
-      if (qs.length) {
-        updateGameState({ state: { questions: qs, index: 0, done: false, started: true } })
-        notify(room.id, 'game', 'a lancé Culture G 📚', username)
-      } else {
-        setAiError("Aucune question générée")
-      }
-    } catch (e) {
-      setAiError(e.message || "Génération impossible")
-    } finally { setGenerating(false) }
   }
 
   function handleAnswer(val) {
@@ -676,10 +597,7 @@ function CultureGame() {
           <p>Culture G</p>
           <span>Répondez ensemble aux mêmes questions !</span>
         </div>
-        <div className="game-actions">
-          <AIGenButton onClick={startAI} loading={generating} label="Quiz IA ✨" />
-        </div>
-        {aiError && <p className="ai-error">{aiError}</p>}
+        <div className="game-actions" />
       </div>
     )
   }
@@ -741,8 +659,14 @@ function RoueGame() {
   const [input, setInput] = useState('')
   const [rotation, setRotation] = useState(0)
   const notifiedRef = useRef(false)
-  const [generating, setGenerating] = useState(false)
-  const [aiError, setAiError] = useState('')
+
+  useEffect(() => {
+    if (canPlay && choices.join('|') === ['Film', 'Resto', 'Balade', 'Jeu', 'Série', 'Cuisine'].join('|')) {
+      const ai = takeRoue(6)
+      if (ai.length) updateGameState({ state: { ...gs, choices: ai, result: null } })
+    }
+    // eslint-disable-next-line
+  }, [])
 
   function addChoice() {
     if (!input.trim() || choices.length >= 8) return
@@ -753,17 +677,6 @@ function RoueGame() {
   function removeChoice(i) {
     if (choices.length <= 2) return
     updateGameState({ state: { ...gs, choices: choices.filter((_, idx) => idx !== i), result: null } })
-  }
-
-  async function generateRoue() {
-    setGenerating(true); setAiError('')
-    try {
-      const res = await generateWithAI(rouePrompt(6))
-      const list = (res?.choices || []).map(c => String(c).trim()).filter(Boolean)
-      if (list.length) updateGameState({ state: { ...gs, choices: list, result: null } })
-    } catch (e) {
-      setAiError(e.message || "Génération impossible")
-    } finally { setGenerating(false) }
   }
 
   function spin() {
@@ -824,7 +737,6 @@ function RoueGame() {
                 <input placeholder="Nouveau choix..." value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && addChoice()} />
                 <button className="btn btn-sm" onClick={addChoice} disabled={!input.trim() || choices.length >= 8}>+</button>
               </div>
-              <AIGenButton onClick={generateRoue} loading={generating} label="Idées IA ✨" />
             </>
           )}
         </div>
@@ -834,7 +746,6 @@ function RoueGame() {
           <Shuffle size={20} /> {spinning ? '...' : "Lancer la roue !"}
         </button>
       </div>
-      {aiError && <p className="ai-error">{aiError}</p>}
     </>
   )
 }
@@ -1005,8 +916,6 @@ function WouldYouRather() {
   const partnerKey = Object.keys(gs).find(k => k.startsWith('choice_') && k !== `choice_${username}`)
   const partnerChoice = partnerKey ? gs[partnerKey] : null
   const revealed = gs.revealed || false
-  const [generating, setGenerating] = useState(false)
-  const [aiError, setAiError] = useState('')
 
   const bothChose = myChoice !== null && partnerChoice !== null
 
@@ -1015,31 +924,18 @@ function WouldYouRather() {
       notify(room.id, 'game', 'a lancé Tu Préfères ⚡', username)
       notifiedRef.current = true
     }
-    let idx
-    do {
-      idx = Math.floor(Math.random() * WYR_QUESTIONS.length)
-    } while (idx === questionIndex && WYR_QUESTIONS.length > 1)
     const clean = {}
     Object.keys(gs).forEach(k => { if (!k.startsWith('choice_') && k !== 'revealed') clean[k] = gs[k] })
-    updateGameState({ state: { ...clean, questionIndex: idx, customPair: null, revealed: false } })
-  }
-
-  async function startAIPair() {
-    setGenerating(true); setAiError('')
-    try {
-      const res = await generateWithAI(wyrPrompt(1))
-      const p = (res?.pairs || [])[0]
-      if (!p || !p.a || !p.b) { setAiError("Aucun dilemme généré"); return }
-      const clean = {}
-      Object.keys(gs).forEach(k => { if (!k.startsWith('choice_') && k !== 'revealed') clean[k] = gs[k] })
-      updateGameState({ state: { ...clean, customPair: { a: p.a, b: p.b }, questionIndex: null, revealed: false } })
-      if (!notifiedRef.current && room) {
-        notify(room.id, 'game', 'a lancé Tu Préfères ⚡', username)
-        notifiedRef.current = true
-      }
-    } catch (e) {
-      setAiError(e.message || "Génération impossible")
-    } finally { setGenerating(false) }
+    const pair = takeWYR()
+    if (pair.length) {
+      updateGameState({ state: { ...clean, customPair: { a: pair[0].a, b: pair[0].b }, questionIndex: null, revealed: false } })
+    } else {
+      let idx
+      do {
+        idx = Math.floor(Math.random() * WYR_QUESTIONS.length)
+      } while (idx === questionIndex && WYR_QUESTIONS.length > 1)
+      updateGameState({ state: { ...clean, questionIndex: idx, customPair: null, revealed: false } })
+    }
   }
 
   function choose(val) {
@@ -1124,10 +1020,8 @@ function WouldYouRather() {
           <button className="btn btn-sm" onClick={start}>
             <RotateCcw size={14} /> Suivante
           </button>
-          <AIGenButton onClick={startAIPair} loading={generating} label="Dilemme IA ✨" />
         </div>
       )}
-      {aiError && <p className="ai-error">{aiError}</p>}
     </>
   )
 }
@@ -1161,8 +1055,6 @@ function GuessDrawGame() {
   const [guess, setGuess] = useState('')
   const [log, setLog] = useState([])
   const [flash, setFlash] = useState('')
-  const [generating, setGenerating] = useState(false)
-  const [aiError, setAiError] = useState('')
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
 
@@ -1174,21 +1066,10 @@ function GuessDrawGame() {
   }
 
   function pickWord() {
-    const w = DRAW_WORDS[Math.floor(Math.random() * DRAW_WORDS.length)]
+    const ai = takeDrawWord()
+    const w = ai.length ? ai[0] : DRAW_WORDS[Math.floor(Math.random() * DRAW_WORDS.length)]
     wordRef.current = w
     setWord(w)
-  }
-
-  async function generateWord() {
-    setGenerating(true); setAiError('')
-    try {
-      const res = await generateWithAI(drawWordsPrompt(1))
-      const w = (res?.words || [])[0]
-      if (w) { wordRef.current = w; setWord(w) }
-      else setAiError("Aucun mot généré")
-    } catch (e) {
-      setAiError(e.message || "Génération impossible")
-    } finally { setGenerating(false) }
   }
 
   function getPos(e) {
@@ -1382,10 +1263,6 @@ function GuessDrawGame() {
       {role === 'drawer' && (
         <div className="gd-word">
           Mot à dessiner : <strong>{word || '...'}</strong>
-          <button className="gd-word-ai" onClick={generateWord} disabled={generating} title="Générer un mot avec l'IA">
-            {generating ? '✨...' : '✨ IA'}
-          </button>
-          {aiError && <span className="ai-error" style={{ display: 'block' }}>{aiError}</span>}
         </div>
       )}
 
@@ -1459,6 +1336,10 @@ export default function Games() {
   const [active, setActive] = useState(urlGame || null)
   const [creating, setCreating] = useState(false)
   const [createMode, setCreateMode] = useState(null)
+
+  useEffect(() => {
+    warmupAIPool()
+  }, [])
 
   useEffect(() => {
     if (urlGame && urlGame !== active) setActive(urlGame)

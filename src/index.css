@@ -1914,3 +1914,94 @@ body {
   from { opacity: 0; transform: translate(-50%, 8px); }
   to { opacity: 1; transform: translate(-50%, 0); }
 }
+
+/* ========== OBJECTIVES ========== */
+.objectives-tabs {
+  display: flex; gap: 8px; margin-bottom: 16px;
+}
+.objectives-tab {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 10px 12px; border-radius: var(--radius); border: 1.5px solid var(--border);
+  background: var(--card); color: var(--muted-foreground); font-size: 14px; font-weight: 600;
+  cursor: pointer; transition: all 0.2s;
+}
+.objectives-tab.active {
+  border-color: var(--primary); background: rgba(138, 121, 171, 0.08); color: var(--primary);
+}
+.objectives-badge {
+  font-size: 12px; font-weight: 700; background: var(--primary); color: var(--primary-foreground);
+  padding: 1px 6px; border-radius: 999px; line-height: 1.3;
+}
+.objectives-form {
+  background: var(--card); border: 1px solid var(--border); border-radius: calc(var(--radius) * 1.5);
+  padding: 16px; margin-bottom: 16px; display: flex; flex-direction: column; gap: 10px;
+}
+.objectives-form-header {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;
+}
+.objectives-form-header h3 { margin: 0; font-size: 16px; color: var(--foreground); }
+.objectives-input {
+  width: 100%; padding: 10px 12px; border-radius: var(--radius); border: 1px solid var(--border);
+  background: var(--secondary); color: var(--foreground); font-size: 15px; font-weight: 500;
+  outline: none; box-sizing: border-box;
+}
+.objectives-input:focus { border-color: var(--primary); }
+.objectives-textarea {
+  width: 100%; padding: 10px 12px; border-radius: var(--radius); border: 1px solid var(--border);
+  background: var(--secondary); color: var(--foreground); font-size: 14px;
+  resize: vertical; outline: none; box-sizing: border-box; font-family: inherit;
+}
+.objectives-textarea:focus { border-color: var(--primary); }
+.objectives-preview {
+  position: relative; border-radius: var(--radius); overflow: hidden; max-height: 140px;
+}
+.objectives-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.objectives-preview-remove {
+  position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; border-radius: 50%;
+  background: rgba(0,0,0,0.5); color: white; border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.objectives-form-actions { display: flex; gap: 8px; }
+.objectives-form-actions .btn { flex: 1; }
+
+.objectives-list {
+  display: flex; flex-direction: column; gap: 10px;
+}
+.objectives-skeleton {
+  height: 80px; border-radius: var(--radius); background: var(--secondary);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+.objective-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: calc(var(--radius) * 1.5);
+  padding: 14px 16px; transition: all 0.2s;
+}
+.objective-card.completed {
+  border-color: rgba(52, 211, 153, 0.3); background: rgba(52, 211, 153, 0.04);
+}
+.objective-header {
+  display: flex; align-items: flex-start; gap: 12px;
+}
+.objective-check {
+  width: 24px; height: 24px; border-radius: 6px; flex-shrink: 0;
+  border: 2px solid var(--border); background: transparent; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s; margin-top: 2px;
+}
+.objective-check.checked {
+  background: #34d399; border-color: #34d399; color: white;
+}
+.objective-check:not(.checked):hover { border-color: var(--primary); }
+.objective-info { flex: 1; min-width: 0; }
+.objective-title { margin: 0; font-size: 15px; font-weight: 600; color: var(--foreground); }
+.objective-card.completed .objective-title { text-decoration: line-through; opacity: 0.6; }
+.objective-desc { margin: 4px 0 0; font-size: 13px; color: var(--muted-foreground); line-height: 1.4; }
+.objective-meta { display: block; margin-top: 4px; font-size: 12px; color: var(--muted-foreground); opacity: 0.7; }
+.objective-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.objective-proof {
+  margin-top: 10px; border-radius: var(--radius); overflow: hidden;
+}
+.objective-proof img { width: 100%; max-height: 200px; object-fit: cover; display: block; }
+.objective-completed-badge {
+  margin-top: 8px; display: flex; align-items: center; gap: 4px;
+  font-size: 12px; color: #34d399; font-weight: 600;
+}

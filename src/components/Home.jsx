@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Heart, Calendar, MapPin, MessageCircle, Image, PenLine, Gamepad2, Sparkles, MessageCircleQuestion, LayoutDashboard, BarChart3, Gift, Hash, Music, Send, Flame } from 'lucide-react'
+import { Heart, Calendar, MapPin, MessageCircle, Image, PenLine, Gamepad2, Sparkles, MessageCircleQuestion, LayoutDashboard, BarChart3, Gift, Hash, Music, Send, Flame, Target } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useRoom } from '../context/RoomContext'
 import { useToast } from '../context/ToastContext'
@@ -79,6 +79,7 @@ export default function Home() {
     { to: '/galerie', icon: Image, label: 'Galerie', desc: 'Nos souvenirs', color: '#c084fc' },
     { to: '/carte', icon: MapPin, label: 'Carte', desc: 'La distance', color: '#60a5fa' },
     { to: '/dessin', icon: PenLine, label: 'Dessin', desc: 'Dessine-moi', color: '#34d399' },
+    { to: '/objectifs', icon: Target, label: 'Objectifs', desc: 'Défis en duo', color: '#f43f5e' },
     { to: '/jeux', icon: Gamepad2, label: 'Jeux', desc: '8 jeux en duo', color: '#f472b6' },
     { to: '/widgets', icon: LayoutDashboard, label: 'Widgets', desc: 'Nos stats en direct', color: '#f59e0b' },
     { to: '/stats', icon: BarChart3, label: 'Stats', desc: 'Messages, photos...', color: '#ef4444' },

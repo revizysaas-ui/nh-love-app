@@ -54,7 +54,11 @@ export function PlayerProvider({ children }) {
   const [playing, setPlaying] = useState(false)
   const [loop, setLoop] = useState(false)
   const [repeat, setRepeat] = useState(false)
-  const [incomingShare, setIncomingShare] = useState(null)
+  const pendingSeekRef = useRef(null)
+  const pendingPauseRef = useRef(false)
+  const playingRef = useRef(false)
+  const currentTypeRef = useRef(null)
+  const syncChannelRef = useRef(null)
 
   const ytRef = useRef(null)           // YT.Player instance (persiste entre les pages)
   const ytReadyRef = useRef(false)
@@ -75,6 +79,8 @@ export function PlayerProvider({ children }) {
   useEffect(() => { currentIdRef.current = currentId }, [currentId])
   useEffect(() => { loopRef.current = loop }, [loop])
   useEffect(() => { repeatRef.current = repeat }, [repeat])
+  useEffect(() => { playingRef.current = playing }, [playing])
+  useEffect(() => { currentTypeRef.current = currentType }, [currentType])
 
   const currentIdx = currentId ? songs.findIndex(s => s.id === currentId) : -1
   const currentSong = currentIdx >= 0 ? songs[currentIdx] : null
@@ -177,10 +183,11 @@ export function PlayerProvider({ children }) {
       } else {
         setCurrentId(null)
         setPlaying(false)
+        sendSync()
         return
       }
     }
-    setCurrentId(list[next].id)
+    applyState({ currentId: list[next].id, playing: true, pos: 0 }, { broadcast: true })
   }
 
   function handlePlayerError() {
@@ -241,8 +248,13 @@ export function PlayerProvider({ children }) {
           onReady: () => {
             ytReadyRef.current = true
             if (pendingVidRef.current) {
-              ytRef.current.loadVideoById(pendingVidRef.current)
+              ytRef.current.loadVideoById({ videoId: pendingVidRef.current, startSeconds: pendingSeekRef.current != null ? pendingSeekRef.current : undefined })
+              pendingSeekRef.current = null
               pendingVidRef.current = null
+              if (pendingPauseRef.current) {
+                pendingPauseRef.current = false
+                setTimeout(() => { try { ytRef.current?.pauseVideo() } catch {} }, 350)
+              }
             }
             positionScreen(hostEl)
           },
@@ -311,46 +323,76 @@ export function PlayerProvider({ children }) {
   const shareChannelRef = useRef(null)
   useEffect(() => {
     if (!room) return
-    const ch = supabase.channel('music-share-' + room.id)
-      .on('broadcast', { event: 'share' }, ({ payload }) => {
-        if (payload?.from && payload.from !== username) {
-          setIncomingShare({ from: payload.from, song: payload.song })
-        }
-      })
+    const ch = supabase.channel('music-sync-' + room.id)
+      .on('broadcast', { event: 'sync' }, ({ payload }) => { applyState(payload, { broadcast: false }) })
       .subscribe()
-    shareChannelRef.current = ch
+    syncChannelRef.current = ch
     return () => {
       supabase.removeChannel(ch)
-      shareChannelRef.current = null
+      syncChannelRef.current = null
     }
   }, [room?.id])
 
-  function shareCurrentSong() {
-    if (!currentSong) return
-    const ch = shareChannelRef.current
-    if (ch) ch.send({ type: 'broadcast', event: 'share', payload: { from: username, song: { id: currentSong.id, url: currentSong.url, title: currentSong.title } } })
-    showToast('Musique partagée 🎵')
-  }
+  useEffect(() => {
+    if (!room) return
+    const id = setInterval(() => {
+      if (playingRef.current && currentIdRef.current && syncChannelRef.current) sendSync()
+    }, 5000)
+    return () => clearInterval(id)
+  }, [room?.id])
 
-  async function acceptShare() {
-    const sh = incomingShare
-    if (!sh) return
-    const list = songsRef.current
-    const idx = list.findIndex(s => s.id === sh.song.id)
-    if (idx >= 0) {
-      playSong(idx)
-    } else {
-      await add(sh.song.url, sh.song.title)
-      setTimeout(() => {
-        const i = songsRef.current.findIndex(s => s.url === sh.song.url)
-        if (i >= 0) playSong(i)
-      }, 400)
+  function currentPos() {
+    if (currentTypeRef.current === 'youtube') {
+      try { return ytRef.current?.getCurrentTime?.() || 0 } catch { return 0 }
     }
-    setIncomingShare(null)
+    if (nativeElRef.current) return nativeElRef.current.currentTime || 0
+    return 0
   }
 
-  function dismissShare() {
-    setIncomingShare(null)
+  function sendSync() {
+    const ch = syncChannelRef.current
+    if (!ch) return
+    ch.send({ type: 'broadcast', event: 'sync', payload: { currentId: currentIdRef.current, playing: playingRef.current, pos: currentPos(), t: Date.now() } })
+  }
+
+  function doSeek(pos) {
+    if (currentTypeRef.current === 'youtube') {
+      try { ytRef.current?.seekTo(pos, true) } catch {}
+    } else if (nativeElRef.current) {
+      nativeElRef.current.currentTime = pos
+    }
+  }
+
+  function doPlay() {
+    if (currentTypeRef.current === 'youtube') { try { ytRef.current?.playVideo() } catch {} }
+    else if (nativeElRef.current) { nativeElRef.current.play().catch(() => {}) }
+    setPlaying(true)
+  }
+
+  function doPause() {
+    if (currentTypeRef.current === 'youtube') { try { ytRef.current?.pauseVideo() } catch {} }
+    else if (nativeElRef.current) { try { nativeElRef.current.pause() } catch {} }
+    setPlaying(false)
+  }
+
+  // Applique un état de lecture. broadcast:true => émis vers le partenaire.
+  function applyState(state, opts = {}) {
+    if (!state) return
+    const cid = state.currentId ?? null
+    const pl = !!state.playing
+    const pos = (typeof state.pos === 'number') ? state.pos : null
+
+    if (cid !== currentIdRef.current) {
+      pendingSeekRef.current = (pl && pos != null) ? pos : null
+      pendingPauseRef.current = !pl
+      setCurrentId(cid)
+    } else if (pl && playingRef.current && pos != null) {
+      if (Math.abs(currentPos() - pos) > 1.5) doSeek(pos)
+    }
+
+    if (pl) doPlay(); else doPause()
+
+    if (opts.broadcast) sendSync()
   }
 
   useEffect(() => {
@@ -377,7 +419,12 @@ export function PlayerProvider({ children }) {
       const vid = extractYouTubeId(currentSong.url)
       if (!vid) return
       if (ytReadyRef.current && ytRef.current) {
-        ytRef.current.loadVideoById({ videoId: vid })
+        ytRef.current.loadVideoById({ videoId: vid, startSeconds: pendingSeekRef.current != null ? pendingSeekRef.current : undefined })
+        pendingSeekRef.current = null
+        if (pendingPauseRef.current) {
+          pendingPauseRef.current = false
+          setTimeout(() => { try { ytRef.current?.pauseVideo() } catch {} }, 350)
+        }
       } else {
         pendingVidRef.current = vid
       }
@@ -402,6 +449,8 @@ export function PlayerProvider({ children }) {
         nativeElRef.current = el
         getHarbor().appendChild(el)
         el.play().catch(() => {})
+        if (pendingSeekRef.current != null) { el.currentTime = pendingSeekRef.current; pendingSeekRef.current = null }
+        if (pendingPauseRef.current) { pendingPauseRef.current = false; el.pause() }
       }
     }
   }, [currentId])
@@ -424,27 +473,32 @@ export function PlayerProvider({ children }) {
   function playSong(idx) {
     const song = songs[idx]
     if (!song) return
-    if (song.id === currentId) {
+    if (song.id === currentIdRef.current) {
       togglePlay()
     } else {
-      setCurrentId(song.id)
+      applyState({ currentId: song.id, playing: true, pos: 0 }, { broadcast: true })
     }
   }
 
   function togglePlay() {
+    if (!currentSong) return
     if (playing) {
-      ytRef.current?.pauseVideo()
-      if (nativeElRef.current) nativeElRef.current.pause()
-      setPlaying(false)
+      applyState({ currentId: currentIdRef.current, playing: false }, { broadcast: true })
     } else {
-      ytRef.current?.playVideo()
-      if (nativeElRef.current) nativeElRef.current.play()
-      setPlaying(true)
+      applyState({ currentId: currentIdRef.current, playing: true, pos: currentPos() }, { broadcast: true })
     }
   }
 
   function nextSong() {
-    actionsRef.current.advance()
+    const list = songsRef.current
+    if (!list.length) return
+    const idx = currentIdRef.current ? list.findIndex(s => s.id === currentIdRef.current) : -1
+    let next = idx + 1
+    if (next >= list.length) {
+      if (loopRef.current) next = 0
+      else { applyState({ currentId: null, playing: false }, { broadcast: true }); return }
+    }
+    applyState({ currentId: list[next].id, playing: true, pos: 0 }, { broadcast: true })
   }
 
   function prevSong() {
@@ -452,10 +506,10 @@ export function PlayerProvider({ children }) {
     if (!list.length) return
     const idx = currentIdRef.current ? list.findIndex(s => s.id === currentIdRef.current) : -1
     if (idx <= 0) {
-      if (loopRef.current && list.length) setCurrentId(list[list.length - 1].id)
+      if (loopRef.current && list.length) applyState({ currentId: list[list.length - 1].id, playing: true, pos: 0 }, { broadcast: true })
       return
     }
-    setCurrentId(list[idx - 1].id)
+    applyState({ currentId: list[idx - 1].id, playing: true, pos: 0 }, { broadcast: true })
   }
 
   function stop() {
@@ -466,6 +520,7 @@ export function PlayerProvider({ children }) {
       nativeElRef.current = null
     }
     try { ytRef.current?.pauseVideo() } catch {}
+    sendSync()
   }
 
   const value = {
@@ -490,10 +545,6 @@ export function PlayerProvider({ children }) {
     registerNativeEl,
     handleNativeEnded,
     syncPlaying,
-    shareCurrentSong,
-    incomingShare,
-    acceptShare,
-    dismissShare,
   }
 
   return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>

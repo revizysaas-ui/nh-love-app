@@ -21,6 +21,7 @@ const Stats = lazy(() => import('./components/Stats'))
 const Wishlist = lazy(() => import('./components/Wishlist'))
 const Counters = lazy(() => import('./components/Counters'))
 const Playlist = lazy(() => import('./components/Playlist'))
+const Objectives = lazy(() => import('./components/Objectives'))
 import './index.css'
 
 function ProtectedRoute({ children }) {
@@ -54,6 +55,7 @@ function AppRoutes() {
         <Route path="/souhaits" element={<Wishlist />} />
         <Route path="/compteurs" element={<Counters />} />
         <Route path="/playlist" element={<Playlist />} />
+        <Route path="/objectifs" element={<Objectives />} />
         <Route path="/parametres" element={<Settings />} />
       </Route>
     </Routes>

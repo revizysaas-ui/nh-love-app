@@ -1,11 +1,70 @@
-import { useState, useEffect, useRef } from 'react'
-import { Target, Plus, Check, X, Camera, Trash2, Upload, User, FileText } from 'lucide-react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { Target, Plus, Check, X, Camera, Trash2, User } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useRoom } from '../context/RoomContext'
 import { notify } from '../lib/notify'
 
 function getProofUrl(path) {
   return supabase.storage.from('objectives').getPublicUrl(path).data.publicUrl
+}
+
+function ObjectiveCard({ obj, username, room, onToggle, onDelete, onAddProof }) {
+  const isOwner = obj.created_by === username
+  const fileRef = useRef(null)
+
+  function handleProofSelect(e) {
+    const file = e.target.files?.[0]
+    if (file) onAddProof(obj, file)
+    e.target.value = ''
+  }
+
+  return (
+    <div className={`objective-card ${obj.completed ? 'completed' : ''}`}>
+      <div className="objective-header">
+        <button
+          className={`objective-check ${obj.completed ? 'checked' : ''}`}
+          onClick={() => !isOwner && onToggle(obj)}
+          disabled={isOwner}
+        >
+          {obj.completed && <Check size={14} />}
+        </button>
+        <div className="objective-info">
+          <h4 className="objective-title">{obj.title}</h4>
+          {obj.description && <p className="objective-desc">{obj.description}</p>}
+          <small className="objective-meta">
+            {isOwner ? `Assigné à ${obj.assigned_to}` : `Créé par ${obj.created_by}`}
+            {obj.completed && obj.completed_at && ` · Terminé le ${new Date(obj.completed_at).toLocaleDateString('fr-FR')}`}
+          </small>
+        </div>
+        <div className="objective-actions">
+          {!isOwner && !obj.proof_url && (
+            <>
+              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleProofSelect} />
+              <button className="btn-icon" title="Ajouter une photo preuve" onClick={() => fileRef.current?.click()}>
+                <Camera size={16} />
+              </button>
+            </>
+          )}
+          {isOwner && (
+            <button className="btn-icon btn-danger-icon" title="Supprimer" onClick={() => onDelete(obj)}>
+              <Trash2 size={14} />
+            </button>
+          )}
+        </div>
+      </div>
+      {obj.proof_url && (
+        <div className="objective-proof">
+          <img src={getProofUrl(obj.proof_url)} alt="Preuve" />
+        </div>
+      )}
+      {obj.completed && (
+        <div className="objective-completed-badge">
+          <Check size={14} />
+          Terminé{obj.completed_at && ` le ${new Date(obj.completed_at).toLocaleDateString('fr-FR')}`}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function Objectives() {
@@ -19,7 +78,7 @@ export default function Objectives() {
   const [proofPreview, setProofPreview] = useState(null)
   const [uploading, setUploading] = useState(false)
   const [loading, setLoading] = useState(true)
-  const fileRef = useRef(null)
+  const formFileRef = useRef(null)
 
   const partner = room?.name1 === username ? room?.name2 : room?.name1
 
@@ -47,24 +106,21 @@ export default function Objectives() {
   async function createObjective() {
     if (!title.trim()) return
     setUploading(true)
-    let proofUrl = null
-
+    let proofPath = null
     if (proofFile) {
       const ext = proofFile.name.split('.').pop()
       const path = `${room.id}/${Date.now()}.${ext}`
       const { error } = await supabase.storage.from('objectives').upload(path, proofFile)
-      if (!error) proofUrl = path
+      if (!error) proofPath = path
     }
-
     await supabase.from('objectives').insert({
       room_id: room.id,
       created_by: username,
       assigned_to: partner,
       title: title.trim(),
       description: description.trim() || null,
-      proof_url: proofUrl,
+      proof_url: proofPath,
     })
-
     setTitle('')
     setDescription('')
     setProofFile(null)
@@ -75,18 +131,13 @@ export default function Objectives() {
   }
 
   async function toggleComplete(obj) {
-    const newCompleted = !obj.completed
-    const updates = {
-      completed: newCompleted,
-      completed_at: newCompleted ? new Date().toISOString() : null,
-    }
+    const next = !obj.completed
+    const updates = { completed: next, completed_at: next ? new Date().toISOString() : null }
     await supabase.from('objectives').update(updates).eq('id', obj.id)
     setObjectives(prev => prev.map(o => o.id === obj.id ? { ...o, ...updates } : o))
   }
 
-  async function addProof(obj) {
-    const file = fileRef.current?.files?.[0]
-    if (!file) return
+  async function addProof(obj, file) {
     const ext = file.name.split('.').pop()
     const path = `${room.id}/${obj.id}.${ext}`
     const { error } = await supabase.storage.from('objectives').upload(path, file)
@@ -102,7 +153,7 @@ export default function Objectives() {
     setObjectives(prev => prev.filter(o => o.id !== obj.id))
   }
 
-  function handleFileSelect(e) {
+  function handleFormFile(e) {
     const file = e.target.files?.[0]
     if (!file) return
     setProofFile(file)
@@ -114,7 +165,6 @@ export default function Objectives() {
   const mine = objectives.filter(o => o.assigned_to === username)
   const assigned = objectives.filter(o => o.created_by === username)
   const displayed = tab === 'mine' ? mine : assigned
-
   const mineDone = mine.filter(o => o.completed).length
   const assignedDone = assigned.filter(o => o.completed).length
 
@@ -149,21 +199,8 @@ export default function Objectives() {
               <X size={18} />
             </button>
           </div>
-          <input
-            className="objectives-input"
-            placeholder="Titre de l'objectif..."
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-            autoFocus
-          />
-          <textarea
-            className="objectives-textarea"
-            placeholder="Description (optionnel)..."
-            value={description}
-            onChange={e => setDescription(e.target.value)}
-            rows={2}
-          />
-
+          <input className="objectives-input" placeholder="Titre de l'objectif..." value={title} onChange={e => setTitle(e.target.value)} autoFocus />
+          <textarea className="objectives-textarea" placeholder="Description (optionnel)..." value={description} onChange={e => setDescription(e.target.value)} rows={2} />
           {proofPreview && (
             <div className="objectives-preview">
               <img src={proofPreview} alt="Preview" />
@@ -172,13 +209,10 @@ export default function Objectives() {
               </button>
             </div>
           )}
-
-          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
-
+          <input ref={formFileRef} type="file" accept="image/*" className="hidden" onChange={handleFormFile} />
           <div className="objectives-form-actions">
-            <button className="btn btn-secondary" onClick={() => fileRef.current?.click()}>
-              <Camera size={16} />
-              Photo
+            <button className="btn btn-secondary" onClick={() => formFileRef.current?.click()}>
+              <Camera size={16} /> Photo
             </button>
             <button className="btn btn-primary" onClick={createObjective} disabled={!title.trim() || uploading}>
               {uploading ? 'Envoi...' : <><Target size={16} /> Créer</>}
@@ -193,9 +227,7 @@ export default function Objectives() {
         </div>
       ) : displayed.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-state-icon">
-            <Target size={48} />
-          </div>
+          <div className="empty-state-icon"><Target size={48} /></div>
           <p>{tab === 'mine' ? 'Aucun objectif pour toi' : "Tu n'as assigné aucun objectif"}</p>
           <span style={{ fontSize: 14, color: 'var(--muted-foreground)' }}>
             {tab === 'mine' ? 'Ton partenaire peut t\'assigner des objectifs !' : 'Crée un objectif pour ton/ta partenaire'}
@@ -203,58 +235,9 @@ export default function Objectives() {
         </div>
       ) : (
         <div className="objectives-list">
-          {displayed.map(obj => {
-            const isOwner = obj.created_by === username
-            return (
-              <div key={obj.id} className={`objective-card ${obj.completed ? 'completed' : ''}`}>
-                <div className="objective-header">
-                  <button
-                    className={`objective-check ${obj.completed ? 'checked' : ''}`}
-                    onClick={() => isOwner ? null : toggleComplete(obj)}
-                    disabled={isOwner}
-                  >
-                    {obj.completed && <Check size={14} />}
-                  </button>
-                  <div className="objective-info">
-                    <h4 className="objective-title">{obj.title}</h4>
-                    {obj.description && <p className="objective-desc">{obj.description}</p>}
-                    <small className="objective-meta">
-                      {isOwner ? `Assigné à ${obj.assigned_to}` : `Créé par ${obj.created_by}`}
-                      {obj.completed && obj.completed_at && ` · Terminé le ${new Date(obj.completed_at).toLocaleDateString('fr-FR')}`}
-                    </small>
-                  </div>
-                  <div className="objective-actions">
-                    {!isOwner && !obj.proof_url && (
-                      <>
-                        <input ref={el => { if (el && !el.dataset.bound) { el.dataset.bound = '1'; el.addEventListener('change', () => addProof(obj)); } }} type="file" accept="image/*" className="hidden" id={`proof-${obj.id}`} />
-                        <button className="btn-icon" title="Ajouter une photo preuve" onClick={() => document.getElementById(`proof-${obj.id}`)?.click()}>
-                          <Camera size={16} />
-                        </button>
-                      </>
-                    )}
-                    {isOwner && (
-                      <button className="btn-icon btn-danger-icon" title="Supprimer" onClick={() => deleteObjective(obj)}>
-                        <Trash2 size={14} />
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {obj.proof_url && (
-                  <div className="objective-proof">
-                    <img src={getProofUrl(obj.proof_url)} alt="Preuve" />
-                  </div>
-                )}
-
-                {obj.completed && (
-                  <div className="objective-completed-badge">
-                    <Check size={14} />
-                    Terminé{obj.completed_at && ` le ${new Date(obj.completed_at).toLocaleDateString('fr-FR')}`}
-                  </div>
-                )}
-              </div>
-            )
-          })}
+          {displayed.map(obj => (
+            <ObjectiveCard key={obj.id} obj={obj} username={username} room={room} onToggle={toggleComplete} onDelete={deleteObjective} onAddProof={addProof} />
+          ))}
         </div>
       )}
     </div>

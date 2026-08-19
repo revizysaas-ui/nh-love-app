@@ -80,11 +80,11 @@ export function PlayerProvider({ children }) {
   useEffect(() => { loopRef.current = loop }, [loop])
   useEffect(() => { repeatRef.current = repeat }, [repeat])
   useEffect(() => { playingRef.current = playing }, [playing])
-  useEffect(() => { currentTypeRef.current = currentType }, [currentType])
 
   const currentIdx = currentId ? songs.findIndex(s => s.id === currentId) : -1
   const currentSong = currentIdx >= 0 ? songs[currentIdx] : null
   const currentType = currentSong ? getSongType(currentSong.url) : null
+  useEffect(() => { currentTypeRef.current = currentType }, [currentType])
 
   function getHarbor() {
     if (!harborRef.current) {

@@ -298,7 +298,6 @@ export function PlayerProvider({ children }) {
   useEffect(() => {
     const onMove = () => {
       if (!screenRef.current && !ytRef.current) return
-      if (!screenVisibleRef.current) return
       positionScreen(screenAnchorRef.current)
     }
     window.addEventListener('resize', onMove)
@@ -320,7 +319,6 @@ export function PlayerProvider({ children }) {
     }
   }, [room?.id])
 
-  const shareChannelRef = useRef(null)
   useEffect(() => {
     if (!room) return
     const ch = supabase.channel('music-sync-' + room.id)
@@ -381,16 +379,30 @@ export function PlayerProvider({ children }) {
     const cid = state.currentId ?? null
     const pl = !!state.playing
     const pos = (typeof state.pos === 'number') ? state.pos : null
+    const isRemote = !opts.broadcast
 
-    if (cid !== currentIdRef.current) {
+    if (isRemote && !cid && currentIdRef.current) return
+    if (isRemote && cid && currentIdRef.current && cid !== currentIdRef.current) {
       pendingSeekRef.current = (pl && pos != null) ? pos : null
       pendingPauseRef.current = !pl
       setCurrentId(cid)
-    } else if (pl && playingRef.current && pos != null) {
-      if (Math.abs(currentPos() - pos) > 1.5) doSeek(pos)
+    } else if (isRemote && cid === currentIdRef.current) {
+      if (pl && !playingRef.current) doPlay()
+      else if (!pl && playingRef.current) doPause()
+      if (pl && playingRef.current && pos != null) {
+        if (Math.abs(currentPos() - pos) > 3) doSeek(pos)
+      }
     }
 
-    if (pl) doPlay(); else doPause()
+    if (!isRemote) {
+      if (cid !== currentIdRef.current) {
+        pendingSeekRef.current = (pl && pos != null) ? pos : null
+        pendingPauseRef.current = !pl
+        setCurrentId(cid)
+      }
+      if (pl && !playingRef.current) doPlay()
+      else if (!pl && playingRef.current) doPause()
+    }
 
     if (opts.broadcast) sendSync()
   }
@@ -523,6 +535,51 @@ export function PlayerProvider({ children }) {
     sendSync()
   }
 
+  const [incomingShare, setIncomingShare] = useState(null)
+  const shareChannelRef = useRef(null)
+  useEffect(() => {
+    if (!room) return
+    const ch = supabase.channel('music-share-' + room.id)
+      .on('broadcast', { event: 'share' }, ({ payload }) => {
+        if (payload?.from && payload.from !== username) {
+          setIncomingShare({ from: payload.from, song: payload.song })
+        }
+      })
+      .subscribe()
+    shareChannelRef.current = ch
+    return () => {
+      supabase.removeChannel(ch)
+      shareChannelRef.current = null
+    }
+  }, [room?.id])
+
+  function shareCurrentSong() {
+    if (!currentSong) return
+    shareChannelRef.current?.send({ type: 'broadcast', event: 'share', payload: { from: username, song: { id: currentSong.id, url: currentSong.url, title: currentSong.title } } })
+    showToast('Musique partagée 🎵')
+  }
+
+  async function acceptShare() {
+    const sh = incomingShare
+    if (!sh) return
+    const list = songsRef.current
+    const idx = list.findIndex(s => s.id === sh.song.id)
+    if (idx >= 0) {
+      playSong(idx)
+    } else {
+      await add(sh.song.url, sh.song.title)
+      setTimeout(() => {
+        const i = songsRef.current.findIndex(s => s.url === sh.song.url)
+        if (i >= 0) playSong(i)
+      }, 400)
+    }
+    setIncomingShare(null)
+  }
+
+  function dismissShare() {
+    setIncomingShare(null)
+  }
+
   const value = {
     songs,
     currentId,
@@ -545,6 +602,10 @@ export function PlayerProvider({ children }) {
     registerNativeEl,
     handleNativeEnded,
     syncPlaying,
+    shareCurrentSong,
+    incomingShare,
+    acceptShare,
+    dismissShare,
   }
 
   return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>

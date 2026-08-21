@@ -75,19 +75,32 @@ export default function MapView() {
   function startGeo() {
     if (watchIdRef.current) return
     if (!navigator.geolocation) { setGeoStatus('unsupported'); return }
-    setGeoStatus('requesting')
-    const id = navigator.geolocation.watchPosition(
+    navigator.geolocation.getCurrentPosition(
       (pos) => {
         const p = { lat: pos.coords.latitude, lng: pos.coords.longitude }
         myPosRef.current = p
         setMyPos(p)
         setGeoStatus('active')
         sendPosition(p)
+        const id = navigator.geolocation.watchPosition(
+          (pos2) => {
+            const p2 = { lat: pos2.coords.latitude, lng: pos2.coords.longitude }
+            myPosRef.current = p2
+            setMyPos(p2)
+            sendPosition(p2)
+          },
+          () => {},
+          { enableHighAccuracy: true, timeout: 15000, maximumAge: 3000 }
+        )
+        watchIdRef.current = id
       },
-      (err) => { console.error('Geolocation:', err); setGeoStatus('error') },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 3000 }
+      (err) => {
+        console.error('Geolocation:', err)
+        if (err.code === 1) setGeoStatus('denied')
+        else setGeoStatus('error')
+      },
+      { enableHighAccuracy: true, timeout: 15000 }
     )
-    watchIdRef.current = id
   }
 
   useEffect(() => {
@@ -336,7 +349,7 @@ export default function MapView() {
       <div className={'map-canvas-wrap' + (fullscreen ? ' fullscreen' : '')}>
         <div ref={mapRef} className="map-canvas" />
 
-        {geoStatus === 'idle' && (
+        {(geoStatus === 'idle' || geoStatus === 'requesting') && (
           <div className="map-geo-overlay">
             <button className="map-geo-btn" onClick={startGeo}>
               <Crosshair size={20} />
@@ -345,7 +358,17 @@ export default function MapView() {
           </div>
         )}
 
-        {geoStatus === 'requesting' && (
+        {geoStatus === 'denied' && (
+          <div className="map-geo-overlay">
+            <div className="map-geo-denied">
+              <Locate size={20} />
+              <span>Localisation désactivée</span>
+              <span className="map-geo-hint">Active-la dans : Réglages → Confidentialité → Services de localisation → Safari</span>
+            </div>
+          </div>
+        )}
+
+        {geoStatus === 'requesting' && false && (
           <div className="map-geo-overlay">
             <div className="map-geo-waiting">
               <Loader size={20} className="spin" />

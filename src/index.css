@@ -1132,6 +1132,15 @@ body.map-fullscreen-active .share-toast { display: none !important; }
   background: rgba(255, 255, 255, 0.9); color: var(--foreground);
   font-size: 14px; font-weight: 500;
 }
+.map-geo-denied {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 20px 28px; border-radius: 16px;
+  background: rgba(255, 255, 255, 0.92); color: var(--foreground);
+  font-size: 14px; font-weight: 600; text-align: center; max-width: 300px;
+}
+.map-geo-hint {
+  font-size: 12px; font-weight: 400; color: var(--muted-foreground); line-height: 1.4;
+}
 
 .map-btn-tl, .map-btn-tr {
   position: absolute; z-index: 1000;

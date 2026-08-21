@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
-import { MapPin, Navigation, Coffee, TreePine, Utensils, Users, RotateCcw, Loader, Share2, Locate, Target, Footprints } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { MapPin, Coffee, TreePine, Utensils, Users, RotateCcw, Loader, Locate, Target, Footprints, Satellite, Map } from 'lucide-react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useRoom } from '../context/RoomContext'
@@ -20,8 +20,16 @@ const CATEGORIES = [
   { key: 'bar', label: 'Bar', icon: Users, query: 'node["amenity"="bar"]', color: '#f59e0b' },
 ]
 
-function makeIcon(emoji, size = 32) {
-  return L.divIcon({ className: '', html: `<div style="font-size:${size - 4}px;line-height:${size}px;text-align:center;filter:drop-shadow(0 2px 4px rgba(0,0,0,.3))">${emoji}</div>`, iconSize: [size, size], iconAnchor: [size / 2, size / 2] })
+const STREET_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+const SAT_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+
+function makeIcon(emoji, size = 40) {
+  return L.divIcon({
+    className: '',
+    html: '<div style="font-size:' + (size - 8) + 'px;line-height:' + size + 'px;text-align:center;filter:drop-shadow(0 2px 6px rgba(0,0,0,.35))">' + emoji + '</div>',
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  })
 }
 
 export default function MapView() {
@@ -31,42 +39,49 @@ export default function MapView() {
   const meMarkerRef = useRef(null)
   const partnerMarkerRef = useRef(null)
   const poiMarkersRef = useRef([])
+  const midMarkerRef = useRef(null)
   const lineRef = useRef(null)
-  const watchIdRef = useRef(null)
   const channelRef = useRef(null)
-  const sentRef = useRef(0)
+  const myPosRef = useRef(null)
+  const streetRef = useRef(null)
+  const satRef = useRef(null)
 
   const [myPos, setMyPos] = useState(null)
   const [partnerPos, setPartnerPos] = useState(null)
   const [partnerName, setPartnerName] = useState('')
   const [geoStatus, setGeoStatus] = useState('idle')
+  const [isSatellite, setIsSatellite] = useState(false)
   const [category, setCategory] = useState(null)
   const [pois, setPois] = useState([])
   const [poiLoading, setPoiLoading] = useState(false)
   const [dist, setDist] = useState(null)
+  const [poiOpen, setPoiOpen] = useState(false)
 
   const otherName = room ? (username === room.name1 ? room.name2 : room.name1) : ''
 
-  const addPoiMarkers = useCallback((map, items, cat) => {
-    poiMarkersRef.current.forEach(m => map.removeLayer(m))
-    poiMarkersRef.current = []
-    const color = cat?.color || '#888'
-    items.forEach(p => {
-      const icon = L.divIcon({
-        className: '',
-        html: `<div style="width:18px;height:18px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3)"></div>`,
-        iconSize: [18, 18], iconAnchor: [9, 9],
-      })
-      const m = L.marker([p.lat, p.lng], { icon }).addTo(map).bindPopup(`<b>${p.name}</b><br>${p.type}`)
-      poiMarkersRef.current.push(m)
-    })
-  }, [])
+  function sendPosition(pos) {
+    const ch = channelRef.current
+    if (!ch || !username || !pos) return
+    ch.send({
+      type: 'broadcast',
+      event: 'position',
+      payload: { from: username, lat: pos.lat, lng: pos.lng },
+    }).catch(() => {})
+  }
 
   useEffect(() => {
     if (mapInst.current || !mapRef.current) return
-    const map = L.map(mapRef.current, { zoomControl: false, attributionControl: false }).setView([48.85, 2.35], 6)
+    const map = L.map(mapRef.current, {
+      zoomControl: false,
+      attributionControl: false,
+      maxZoom: 19,
+    }).setView([48.85, 2.35], 6)
     L.control.zoom({ position: 'bottomright' }).addTo(map)
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(map)
+    const street = L.tileLayer(STREET_URL, { attribution: '© OpenStreetMap', maxZoom: 19 })
+    const sat = L.tileLayer(SAT_URL, { attribution: '© Esri', maxZoom: 18 })
+    street.addTo(map)
+    streetRef.current = street
+    satRef.current = sat
     mapInst.current = map
     return () => { map.remove(); mapInst.current = null }
   }, [])
@@ -75,15 +90,27 @@ export default function MapView() {
     if (!room) return
     const ch = supabase.channel('map-location-' + room.id)
       .on('broadcast', { event: 'position' }, ({ payload }) => {
-        if (payload.from !== username) {
+        if (payload && payload.from !== username) {
           setPartnerPos({ lat: payload.lat, lng: payload.lng })
           setPartnerName(payload.from)
         }
       })
-      .subscribe()
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED' && myPosRef.current) {
+          sendPosition(myPosRef.current)
+        }
+      })
     channelRef.current = ch
     return () => { supabase.removeChannel(ch); channelRef.current = null }
   }, [room?.id, username])
+
+  useEffect(() => {
+    if (!room || !myPos) return
+    const id = setInterval(() => {
+      if (myPosRef.current) sendPosition(myPosRef.current)
+    }, 8000)
+    return () => clearInterval(id)
+  }, [room?.id, myPos])
 
   useEffect(() => {
     if (!room) return
@@ -92,53 +119,50 @@ export default function MapView() {
     const id = navigator.geolocation.watchPosition(
       (pos) => {
         const p = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+        myPosRef.current = p
         setMyPos(p)
         setGeoStatus('active')
-        const now = Date.now()
-        if (now - sentRef.current > 4000 && channelRef.current) {
-          sentRef.current = now
-          channelRef.current.send({ type: 'broadcast', event: 'position', payload: { from: username, lat: p.lat, lng: p.lng } })
-        }
+        sendPosition(p)
       },
-      (err) => {
-        console.error('Geolocation:', err)
-        setGeoStatus('error')
-      },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 }
+      (err) => { console.error('Geolocation:', err); setGeoStatus('error') },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 3000 }
     )
-    watchIdRef.current = id
-    return () => { navigator.geolocation.clearWatch(id); watchIdRef.current = null }
+    return () => navigator.geolocation.clearWatch(id)
   }, [room?.id, username])
 
   useEffect(() => {
     const map = mapInst.current
     if (!map) return
     if (myPos) {
-      const icon = makeIcon('📍', 36)
+      const icon = makeIcon('\uD83D\uDCCD', 44)
       if (!meMarkerRef.current) {
-        meMarkerRef.current = L.marker(myPos, { icon, zIndexOffset: 1000 }).addTo(map).bindPopup('Toi')
+        meMarkerRef.current = L.marker(myPos, { icon, zIndexOffset: 1000 }).addTo(map).bindPopup('<b>' + (username || 'Toi') + '</b>')
       } else {
         meMarkerRef.current.setLatLng(myPos)
+        meMarkerRef.current.setIcon(icon)
       }
     }
     if (partnerPos) {
-      const icon = makeIcon('💕', 36)
+      const icon = makeIcon('\uD83D\uDC95', 44)
       if (!partnerMarkerRef.current) {
-        partnerMarkerRef.current = L.marker(partnerPos, { icon, zIndexOffset: 1000 }).addTo(map).bindPopup(partnerName || 'Partenaire')
+        partnerMarkerRef.current = L.marker(partnerPos, { icon, zIndexOffset: 1000 }).addTo(map).bindPopup('<b>' + (partnerName || 'Partenaire') + '</b>')
       } else {
         partnerMarkerRef.current.setLatLng(partnerPos)
-        partnerMarkerRef.current.setPopupContent(partnerName || 'Partenaire')
+        partnerMarkerRef.current.setIcon(icon)
+        partnerMarkerRef.current.setPopupContent('<b>' + (partnerName || 'Partenaire') + '</b>')
       }
     }
     if (lineRef.current) { map.removeLayer(lineRef.current); lineRef.current = null }
     if (myPos && partnerPos) {
-      lineRef.current = L.polyline([myPos, partnerPos], { color: '#e25555', weight: 3, dashArray: '8 6', opacity: 0.8 }).addTo(map)
+      lineRef.current = L.polyline([myPos, partnerPos], {
+        color: '#e25555', weight: 3, dashArray: '10 6', opacity: 0.7,
+      }).addTo(map)
       map.fitBounds([myPos, partnerPos], { padding: [80, 80], maxZoom: 14 })
       setDist(haversine(myPos.lat, myPos.lng, partnerPos.lat, partnerPos.lng))
-    } else if (myPos && !partnerPos) {
+    } else if (myPos) {
       map.setView(myPos, 14)
     }
-  }, [myPos, partnerPos, partnerName])
+  }, [myPos, partnerPos])
 
   useEffect(() => {
     const map = mapInst.current
@@ -151,7 +175,7 @@ export default function MapView() {
       : 5000
     setPoiLoading(true)
     setPois([])
-    const query = `[out:json][timeout:10];(${category.query}(around:${Math.round(radius)},${center[0]},${center[1]}););out body 30;`
+    const query = '[out:json][timeout:10];(' + category.query + '(around:' + Math.round(radius) + ',' + center[0] + ',' + center[1] + '););out body 30;'
     fetch('https://overpass-api.de/api/interpreter', {
       method: 'POST',
       body: 'data=' + encodeURIComponent(query),
@@ -165,9 +189,20 @@ export default function MapView() {
           lng: el.lon,
           name: el.tags?.name || el.tags?.['name:fr'] || '',
           type: category.label,
+          color: category.color,
         })).filter(p => p.name)
         setPois(items)
-        addPoiMarkers(map, items, category)
+        poiMarkersRef.current.forEach(m => map.removeLayer(m))
+        poiMarkersRef.current = []
+        items.forEach(p => {
+          const icon = L.divIcon({
+            className: '',
+            html: '<div style="width:14px;height:14px;border-radius:50%;background:' + category.color + ';border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3)"></div>',
+            iconSize: [14, 14], iconAnchor: [7, 7],
+          })
+          const m = L.marker([p.lat, p.lng], { icon }).addTo(map).bindPopup('<b>' + p.name + '</b><br>' + p.type)
+          poiMarkersRef.current.push(m)
+        })
         setPoiLoading(false)
       })
       .catch(() => setPoiLoading(false))
@@ -180,13 +215,27 @@ export default function MapView() {
     if (map) { poiMarkersRef.current.forEach(m => map.removeLayer(m)); poiMarkersRef.current = [] }
   }
 
+  function toggleSatellite() {
+    const map = mapInst.current
+    if (!map) return
+    if (isSatellite) {
+      map.removeLayer(satRef.current)
+      streetRef.current.addTo(map)
+    } else {
+      map.removeLayer(streetRef.current)
+      satRef.current.addTo(map)
+    }
+    setIsSatellite(!isSatellite)
+  }
+
   const midPoint = myPos && partnerPos ? [(myPos.lat + partnerPos.lat) / 2, (myPos.lng + partnerPos.lng) / 2] : null
 
   function goToMidpoint() {
     if (!midPoint || !mapInst.current) return
     mapInst.current.setView(midPoint, 14)
-    const icon = makeIcon('🎯', 32)
-    L.marker(midPoint, { icon }).addTo(mapInst.current).bindPopup('Point milieu 🎯').openPopup()
+    if (midMarkerRef.current) mapInst.current.removeLayer(midMarkerRef.current)
+    const icon = makeIcon('\uD83C\uDFAF', 36)
+    midMarkerRef.current = L.marker(midPoint, { icon }).addTo(mapInst.current).bindPopup('<b>Point milieu</b>').openPopup()
   }
 
   function recenter() {
@@ -195,104 +244,110 @@ export default function MapView() {
     else if (myPos) mapInst.current.setView(myPos, 14)
   }
 
-  const displayDist = dist ? (dist < 1 ? `${Math.round(dist * 1000)} m` : `${Math.round(dist)} km`) : null
+  const displayDist = dist ? (dist < 1 ? Math.round(dist * 1000) + ' m' : Math.round(dist) + ' km') : null
 
   if (!room) return null
 
   return (
     <div className="page map-page map-live-page">
-      <div className="page-header">
-        <MapPin size={24} />
-        <h2>Carte en Direct</h2>
-      </div>
+      <div className="map-page-inner">
 
-      {geoStatus === 'error' && (
-        <div className="map-geo-alert">
-          <Locate size={16} />
-          <span>Active la géolocalisation pour partager ta position</span>
+        <div className="map-float-header">
+          <div className="map-float-left">
+            <div className="map-user-dot map-dot-me" />
+            <span className="map-user-name">{username || 'Toi'}</span>
+          </div>
+          <div className="map-float-center">
+            {displayDist ? (
+              <div className="map-dist-pill">
+                <span className="map-dist-value">{displayDist}</span>
+              </div>
+            ) : (
+              <div className="map-waiting-pill">
+                <div className="map-waiting-dots"><span /><span /><span /></div>
+              </div>
+            )}
+          </div>
+          <div className="map-float-right">
+            <span className="map-user-name">{otherName || 'Partenaire'}</span>
+            <div className={"map-user-dot map-dot-partner " + (partnerPos ? 'connected' : '')} />
+          </div>
         </div>
-      )}
 
-      {geoStatus === 'unsupported' && (
-        <div className="map-geo-alert">
-          <Locate size={16} />
-          <span>Ta navigateur ne supporte pas la géolocalisation</span>
-        </div>
-      )}
+        {geoStatus === 'error' && (
+          <div className="map-geo-alert">
+            <Locate size={15} />
+            <span>Active la géolocalisation pour partager ta position</span>
+          </div>
+        )}
 
-      <div className="map-status-bar">
-        <div className="map-status-my">
-          <span className="map-dot map-dot-me" />
-          <span>{username || 'Toi'}</span>
-          {myPos && <span className="map-status-ok">✓</span>}
+        <div className="map-canvas-wrap">
+          <div ref={mapRef} className="map-canvas" />
+
+          <button className={"map-layer-btn " + (isSatellite ? 'active' : '')} onClick={toggleSatellite} title="Satellite">
+            {isSatellite ? <Map size={18} /> : <Satellite size={18} />}
+          </button>
+
+          <div className="map-float-actions">
+            <button className="map-fab" onClick={recenter} title="Recentrer"><RotateCcw size={16} /></button>
+            {midPoint && <button className="map-fab map-fab-accent" onClick={goToMidpoint} title="Point milieu"><Target size={16} /></button>}
+          </div>
         </div>
-        <div className="map-status-dist">
-          {displayDist ? (
-            <>
-              <span className="dist-num">{displayDist}</span>
-              <span className="map-dist-label">entre vous</span>
-            </>
-          ) : (
-            <span className="map-dist-waiting">En attente du partenaire…</span>
+
+        <div className="map-poi-panel">
+          <button className="map-poi-toggle" onClick={() => setPoiOpen(o => !o)}>
+            <Footprints size={16} />
+            <span>Explorer autour de nous</span>
+            <span className={"map-poi-chevron " + (poiOpen ? 'open' : '')}>&#9660;</span>
+          </button>
+
+          {poiOpen && (
+            <div className="map-poi-content">
+              <div className="map-poi-cats">
+                {CATEGORIES.map(c => (
+                  <button
+                    key={c.key}
+                    className={"map-poi-cat " + (category?.key === c.key ? 'active' : '')}
+                    onClick={() => { if (category?.key === c.key) clearPois(); else { setCategory(c); setPois([]) } }}
+                    style={category?.key === c.key ? { borderColor: c.color, color: c.color, background: c.color + '12' } : {}}
+                  >
+                    <c.icon size={14} />
+                    <span>{c.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              {poiLoading && (
+                <div className="map-poi-loading">
+                  <Loader size={15} className="spin" />
+                  <span>Recherche en cours…</span>
+                </div>
+              )}
+
+              {!poiLoading && pois.length > 0 && (
+                <div className="map-poi-list">
+                  {pois.map(p => {
+                    const d = myPos ? haversine(myPos.lat, myPos.lng, p.lat, p.lng) : null
+                    return (
+                      <button key={p.id} className="map-poi-item" onClick={() => mapInst.current?.setView([p.lat, p.lng], 16)}>
+                        <div className="map-poi-dot" style={{ background: p.color }} />
+                        <div className="map-poi-info">
+                          <span className="map-poi-name">{p.name}</span>
+                          {d != null && <span className="map-poi-dist">{d < 1 ? Math.round(d * 1000) + ' m' : Math.round(d) + ' km'}</span>}
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+
+              {!poiLoading && category && pois.length === 0 && (
+                <p className="map-poi-empty">Aucun lieu trouvé autour de vous</p>
+              )}
+            </div>
           )}
         </div>
-        <div className="map-status-partner">
-          <span className="map-dot map-dot-partner" />
-          <span>{otherName || 'Partenaire'}</span>
-          {partnerPos ? <span className="map-status-ok">✓</span> : <span className="map-status-waiting">···</span>}
-        </div>
-      </div>
 
-      <div ref={mapRef} className="map-container map-container-live" />
-
-      <div className="map-actions-row">
-        <button className="map-action-btn" onClick={recenter} title="Recentrer"><RotateCcw size={16} /></button>
-        {midPoint && <button className="map-action-btn map-action-mid" onClick={goToMidpoint} title="Point milieu"><Target size={16} /></button>}
-      </div>
-
-      <div className="map-poi-section">
-        <div className="map-poi-header">
-          <Footprints size={16} />
-          <span>Explorer autour de nous</span>
-        </div>
-        <div className="map-poi-categories">
-          {CATEGORIES.map(c => (
-            <button
-              key={c.key}
-              className={`map-poi-btn ${category?.key === c.key ? 'active' : ''}`}
-              onClick={() => { if (category?.key === c.key) clearPois(); else { setCategory(c); setPois([]) } }}
-              style={category?.key === c.key ? { borderColor: c.color, color: c.color } : {}}
-            >
-              <c.icon size={14} />
-              <span>{c.label}</span>
-            </button>
-          ))}
-        </div>
-
-        {poiLoading && (
-          <div className="map-poi-loading">
-            <Loader size={16} className="spin" />
-            <span>Recherche en cours…</span>
-          </div>
-        )}
-
-        {!poiLoading && pois.length > 0 && (
-          <div className="map-poi-list">
-            {pois.map(p => {
-              const d = myPos ? haversine(myPos.lat, myPos.lng, p.lat, p.lng) : null
-              return (
-                <button key={p.id} className="map-poi-item" onClick={() => mapInst.current?.setView([p.lat, p.lng], 16)}>
-                  <div className="map-poi-item-name">{p.name}</div>
-                  {d != null && <div className="map-poi-item-dist">{d < 1 ? `${Math.round(d * 1000)} m` : `${Math.round(d)} km`}</div>}
-                </button>
-              )
-            })}
-          </div>
-        )}
-
-        {!poiLoading && category && pois.length === 0 && (
-          <p className="map-poi-empty">Aucun lieu trouvé autour de vous</p>
-        )}
       </div>
     </div>
   )

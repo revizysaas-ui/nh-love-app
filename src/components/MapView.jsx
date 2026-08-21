@@ -91,14 +91,17 @@ export default function MapView() {
 
   useEffect(() => {
     if (mapInst.current || !mapRef.current) return
+    const blank = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
     const map = L.map(mapRef.current, {
       zoomControl: false,
       attributionControl: false,
-      maxZoom: 19,
+      maxZoom: 18,
+      zoomSnap: 1,
+      zoomDelta: 1,
     }).setView([48.85, 2.35], 6)
     L.control.zoom({ position: 'bottomright' }).addTo(map)
-    const street = L.tileLayer(STREET_URL, { attribution: '© OpenStreetMap', maxZoom: 19 })
-    const sat = L.tileLayer(SAT_URL, { attribution: '© Esri', maxZoom: 18 })
+    const street = L.tileLayer(STREET_URL, { attribution: '© OpenStreetMap', maxZoom: 18, errorTileUrl: blank, keepBuffer: 2 })
+    const sat = L.tileLayer(SAT_URL, { attribution: '© Esri', maxZoom: 18, errorTileUrl: blank, keepBuffer: 2 })
     street.addTo(map)
     streetRef.current = street
     satRef.current = sat

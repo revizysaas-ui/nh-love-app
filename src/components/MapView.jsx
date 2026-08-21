@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { MapPin, Coffee, TreePine, Utensils, Users, RotateCcw, Loader, Locate, Target, Footprints, Satellite, Map, Crosshair } from 'lucide-react'
+import { MapPin, Coffee, TreePine, Utensils, Users, RotateCcw, Loader, Locate, Target, Footprints, Satellite, Map, Crosshair, Maximize2, Minimize2 } from 'lucide-react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useRoom } from '../context/RoomContext'
@@ -58,6 +58,7 @@ export default function MapView() {
   const [poiLoading, setPoiLoading] = useState(false)
   const [dist, setDist] = useState(null)
   const [poiOpen, setPoiOpen] = useState(false)
+  const [fullscreen, setFullscreen] = useState(false)
 
   const otherName = room ? (username === room.name1 ? room.name2 : room.name1) : ''
 
@@ -95,13 +96,14 @@ export default function MapView() {
     const map = L.map(mapRef.current, {
       zoomControl: false,
       attributionControl: false,
-      maxZoom: 18,
-      zoomSnap: 1,
-      zoomDelta: 1,
+      maxZoom: 19,
+      zoomSnap: 0.5,
+      zoomDelta: 0.5,
+      wheelPxPerZoomLevel: 40,
     }).setView([48.85, 2.35], 6)
     L.control.zoom({ position: 'bottomright' }).addTo(map)
-    const street = L.tileLayer(STREET_URL, { attribution: '© OpenStreetMap', maxZoom: 18, errorTileUrl: blank, keepBuffer: 2 })
-    const sat = L.tileLayer(SAT_URL, { attribution: '© Esri', maxZoom: 18, errorTileUrl: blank, keepBuffer: 2 })
+    const street = L.tileLayer(STREET_URL, { attribution: '© OpenStreetMap', maxZoom: 19, errorTileUrl: blank, keepBuffer: 2 })
+    const sat = L.tileLayer(SAT_URL, { attribution: '© Esri', maxZoom: 19, errorTileUrl: blank, keepBuffer: 2 })
     street.addTo(map)
     streetRef.current = street
     satRef.current = sat
@@ -140,6 +142,11 @@ export default function MapView() {
       if (watchIdRef.current) navigator.geolocation.clearWatch(watchIdRef.current)
     }
   }, [])
+
+  useEffect(() => {
+    const map = mapInst.current
+    if (map) setTimeout(() => map.invalidateSize(), 150)
+  }, [fullscreen])
 
   useEffect(() => {
     const map = mapInst.current
@@ -261,52 +268,66 @@ export default function MapView() {
     else if (myPos) mapInst.current.setView(myPos, 14)
   }
 
+  function toggleFullscreen() {
+    const next = !fullscreen
+    setFullscreen(next)
+    if (next && screen.orientation?.lock) {
+      screen.orientation.lock('landscape').catch(() => {})
+    } else if (!next && screen.orientation?.unlock) {
+      screen.orientation.unlock()
+    }
+  }
+
   const displayDist = dist ? (dist < 1 ? Math.round(dist * 1000) + ' m' : Math.round(dist) + ' km') : null
 
   if (!room) return null
 
   return (
     <div className="page map-page map-live-page">
-      <div className="page-header">
-        <MapPin size={24} />
-        <h2>Carte en Direct</h2>
-      </div>
+      {!fullscreen && (
+        <>
+          <div className="page-header">
+            <MapPin size={24} />
+            <h2>Carte en Direct</h2>
+          </div>
 
-      {geoStatus === 'error' && (
-        <div className="map-geo-alert">
-          <Locate size={15} />
-          <span>Active la géolocalisation dans les réglages de ton appareil</span>
-        </div>
-      )}
-
-      {geoStatus === 'unsupported' && (
-        <div className="map-geo-alert">
-          <Locate size={15} />
-          <span>Ta navigateur ne supporte pas la géolocalisation</span>
-        </div>
-      )}
-
-      <div className="map-status-bar">
-        <div className="map-status-left">
-          <div className="map-user-dot map-dot-me" />
-          <span className="map-user-name">{username || 'Toi'}</span>
-          {myPos && <span className="map-status-ok">&#10003;</span>}
-        </div>
-        <div className="map-status-center">
-          {displayDist ? (
-            <div className="map-dist-pill">{displayDist}</div>
-          ) : (
-            <div className="map-waiting-dots"><span /><span /><span /></div>
+          {geoStatus === 'error' && (
+            <div className="map-geo-alert">
+              <Locate size={15} />
+              <span>Active la géolocalisation dans les réglages de ton appareil</span>
+            </div>
           )}
-        </div>
-        <div className="map-status-right">
-          <span className="map-user-name">{otherName || 'Partenaire'}</span>
-          <div className={'map-user-dot map-dot-partner' + (partnerPos ? ' connected' : '')} />
-          {partnerPos ? <span className="map-status-ok">&#10003;</span> : <span className="map-status-wait">···</span>}
-        </div>
-      </div>
 
-      <div className="map-canvas-wrap">
+          {geoStatus === 'unsupported' && (
+            <div className="map-geo-alert">
+              <Locate size={15} />
+              <span>Ta navigateur ne supporte pas la géolocalisation</span>
+            </div>
+          )}
+
+          <div className="map-status-bar">
+            <div className="map-status-left">
+              <div className="map-user-dot map-dot-me" />
+              <span className="map-user-name">{username || 'Toi'}</span>
+              {myPos && <span className="map-status-ok">&#10003;</span>}
+            </div>
+            <div className="map-status-center">
+              {displayDist ? (
+                <div className="map-dist-pill">{displayDist}</div>
+              ) : (
+                <div className="map-waiting-dots"><span /><span /><span /></div>
+              )}
+            </div>
+            <div className="map-status-right">
+              <span className="map-user-name">{otherName || 'Partenaire'}</span>
+              <div className={'map-user-dot map-dot-partner' + (partnerPos ? ' connected' : '')} />
+              {partnerPos ? <span className="map-status-ok">&#10003;</span> : <span className="map-status-wait">···</span>}
+            </div>
+          </div>
+        </>
+      )}
+
+      <div className={'map-canvas-wrap' + (fullscreen ? ' fullscreen' : '')}>
         <div ref={mapRef} className="map-canvas" />
 
         {geoStatus === 'idle' && (
@@ -332,11 +353,15 @@ export default function MapView() {
         </button>
 
         <div className="map-float-actions">
+          <button className="map-fab" onClick={toggleFullscreen} title={fullscreen ? 'Quitter plein écran' : 'Plein écran'}>
+            {fullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+          </button>
           <button className="map-fab" onClick={recenter} title="Recentrer"><RotateCcw size={16} /></button>
           {midPoint && <button className="map-fab map-fab-accent" onClick={goToMidpoint} title="Point milieu"><Target size={16} /></button>}
         </div>
       </div>
 
+      {!fullscreen && (
       <div className="map-poi-panel">
         <button className="map-poi-toggle" onClick={() => setPoiOpen(o => !o)}>
           <Footprints size={16} />
@@ -390,6 +415,7 @@ export default function MapView() {
           </div>
         )}
       </div>
+      )}
     </div>
   )
 }

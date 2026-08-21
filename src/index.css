@@ -291,6 +291,10 @@ body {
   border-color: rgba(255, 255, 255, 0.08);
   box-shadow: var(--shadow-lg);
 }
+
+body.map-fullscreen-active .bottom-nav-blur { display: none !important; }
+body.map-fullscreen-active .page-header { display: none !important; }
+body.map-fullscreen-active .page-route { padding-bottom: 0 !important; }
 .expandable-tabs {
   display: flex;
   align-items: center;
@@ -1123,9 +1127,9 @@ body {
   font-size: 14px; font-weight: 500;
 }
 
-.map-layer-btn {
-  position: absolute; bottom: 12px; left: 12px; z-index: 1000;
-  width: 38px; height: 38px; border-radius: 10px;
+.map-btn-tl, .map-btn-tr {
+  position: absolute; z-index: 1000;
+  width: 36px; height: 36px; border-radius: 10px;
   display: flex; align-items: center; justify-content: center;
   background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
@@ -1133,11 +1137,13 @@ body {
   color: var(--foreground); cursor: pointer; transition: all 0.2s;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
-.map-layer-btn:hover { transform: scale(1.05); }
-.map-layer-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.map-btn-tl:hover, .map-btn-tr:hover { transform: scale(1.05); }
+.map-btn-tl { top: 12px; left: 12px; }
+.map-btn-tl.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.map-btn-tr { top: 12px; right: 12px; }
 
 .map-float-actions {
-  position: absolute; bottom: 12px; right: 12px; z-index: 1000;
+  position: absolute; bottom: 60px; right: 12px; z-index: 1000;
   display: flex; flex-direction: column; gap: 8px;
 }
 .map-fab {

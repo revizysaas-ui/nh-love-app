@@ -149,6 +149,12 @@ export default function MapView() {
   }, [fullscreen])
 
   useEffect(() => {
+    if (fullscreen) document.body.classList.add('map-fullscreen-active')
+    else document.body.classList.remove('map-fullscreen-active')
+    return () => document.body.classList.remove('map-fullscreen-active')
+  }, [fullscreen])
+
+  useEffect(() => {
     const map = mapInst.current
     if (!map) return
 
@@ -348,16 +354,17 @@ export default function MapView() {
           </div>
         )}
 
-        <button className={'map-layer-btn' + (isSatellite ? ' active' : '')} onClick={toggleSatellite} title="Satellite">
-          {isSatellite ? <Map size={18} /> : <Satellite size={18} />}
+        <button className="map-btn-tl" onClick={toggleSatellite} title="Satellite">
+          {isSatellite ? <Map size={16} /> : <Satellite size={16} />}
+        </button>
+
+        <button className="map-btn-tr" onClick={toggleFullscreen} title={fullscreen ? 'Quitter plein écran' : 'Plein écran'}>
+          {fullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
         </button>
 
         <div className="map-float-actions">
-          <button className="map-fab" onClick={toggleFullscreen} title={fullscreen ? 'Quitter plein écran' : 'Plein écran'}>
-            {fullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-          </button>
-          <button className="map-fab" onClick={recenter} title="Recentrer"><RotateCcw size={16} /></button>
-          {midPoint && <button className="map-fab map-fab-accent" onClick={goToMidpoint} title="Point milieu"><Target size={16} /></button>}
+          <button className="map-fab" onClick={recenter} title="Recentrer"><RotateCcw size={15} /></button>
+          {midPoint && <button className="map-fab map-fab-accent" onClick={goToMidpoint} title="Point milieu"><Target size={15} /></button>}
         </div>
       </div>
 

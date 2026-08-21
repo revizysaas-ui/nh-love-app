@@ -196,6 +196,8 @@ body {
   justify-content: center;
   padding: 12px 16px;
   padding-top: max(12px, env(safe-area-inset-top, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 16px));
+  padding-right: max(16px, env(safe-area-inset-right, 16px));
   background: rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -220,7 +222,7 @@ body {
 }
 .header-theme {
   position: absolute;
-  left: 16px;
+  left: max(16px, env(safe-area-inset-left, 16px));
   color: var(--muted-foreground);
   display: flex;
   align-items: center;
@@ -245,7 +247,7 @@ body {
 }
 .header-settings {
   position: absolute;
-  right: 16px;
+  right: max(16px, env(safe-area-inset-right, 16px));
   color: var(--muted-foreground);
   display: flex;
   align-items: center;
@@ -295,6 +297,10 @@ body {
 body.map-fullscreen-active .bottom-nav-blur { display: none !important; }
 body.map-fullscreen-active .page-header { display: none !important; }
 body.map-fullscreen-active .page-route { padding-bottom: 0 !important; }
+body.map-fullscreen-active .app-header { display: none !important; }
+body.map-fullscreen-active .mini-player,
+body.map-fullscreen-active .mini-player-fab,
+body.map-fullscreen-active .share-toast { display: none !important; }
 .expandable-tabs {
   display: flex;
   align-items: center;

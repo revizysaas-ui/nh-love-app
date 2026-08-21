@@ -72,35 +72,56 @@ export default function MapView() {
     }).catch(() => {})
   }
 
-  function startGeo() {
-    if (watchIdRef.current) return
-    if (!navigator.geolocation) { setGeoStatus('unsupported'); return }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const p = { lat: pos.coords.latitude, lng: pos.coords.longitude }
-        myPosRef.current = p
-        setMyPos(p)
-        setGeoStatus('active')
-        sendPosition(p)
-        const id = navigator.geolocation.watchPosition(
-          (pos2) => {
-            const p2 = { lat: pos2.coords.latitude, lng: pos2.coords.longitude }
-            myPosRef.current = p2
-            setMyPos(p2)
-            sendPosition(p2)
-          },
-          () => {},
-          { enableHighAccuracy: true, timeout: 15000, maximumAge: 3000 }
-        )
-        watchIdRef.current = id
-      },
-      (err) => {
-        console.error('Geolocation:', err)
-        if (err.code === 1) setGeoStatus('denied')
-        else setGeoStatus('error')
-      },
-      { enableHighAccuracy: true, timeout: 15000 }
-    )
+  function applyPos(pos) {
+    const p = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+    myPosRef.current = p
+    setMyPos(p)
+    setGeoStatus('active')
+    sendPosition(p)
+    if (!watchIdRef.current) {
+      const id = navigator.geolocation.watchPosition(
+        (pos2) => {
+          const p2 = { lat: pos2.coords.latitude, lng: pos2.coords.longitude }
+          myPosRef.current = p2
+          setMyPos(p2)
+          sendPosition(p2)
+        },
+        () => {},
+        { enableHighAccuracy: false, timeout: 30000, maximumAge: 10000 }
+      )
+      watchIdRef.current = id
+    }
+  }
+
+  async function startGeo() {
+    if (watchIdRef.current || myPosRef.current) return
+    if (!navigator.geolocation) { setGeoStatus('ip'); return }
+    setGeoStatus('requesting')
+    try {
+      const pos = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: false, timeout: 8000, maximumAge: 60000
+        })
+      })
+      applyPos(pos)
+    } catch (e) {
+      console.warn('Geolocation native failed, trying IP fallback:', e)
+      try {
+        const res = await fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(5000) })
+        const data = await res.json()
+        if (data.latitude && data.longitude) {
+          const p = { lat: data.latitude, lng: data.longitude }
+          myPosRef.current = p
+          setMyPos(p)
+          setGeoStatus('ip')
+          sendPosition(p)
+        } else {
+          setGeoStatus('error')
+        }
+      } catch {
+        setGeoStatus('error')
+      }
+    }
   }
 
   useEffect(() => {
@@ -349,7 +370,7 @@ export default function MapView() {
       <div className={'map-canvas-wrap' + (fullscreen ? ' fullscreen' : '')}>
         <div ref={mapRef} className="map-canvas" />
 
-        {(geoStatus === 'idle' || geoStatus === 'requesting') && (
+        {(geoStatus === 'idle') && (
           <div className="map-geo-overlay">
             <button className="map-geo-btn" onClick={startGeo}>
               <Crosshair size={20} />
@@ -358,21 +379,22 @@ export default function MapView() {
           </div>
         )}
 
-        {geoStatus === 'denied' && (
-          <div className="map-geo-overlay">
-            <div className="map-geo-denied">
-              <Locate size={20} />
-              <span>Localisation désactivée</span>
-              <span className="map-geo-hint">Active-la dans : Réglages → Confidentialité → Services de localisation → Safari</span>
-            </div>
-          </div>
-        )}
-
-        {geoStatus === 'requesting' && false && (
+        {geoStatus === 'requesting' && (
           <div className="map-geo-overlay">
             <div className="map-geo-waiting">
               <Loader size={20} className="spin" />
               <span>Activation en cours…</span>
+            </div>
+          </div>
+        )}
+
+        {(geoStatus === 'denied' || geoStatus === 'error') && (
+          <div className="map-geo-overlay">
+            <div className="map-geo-denied">
+              <Locate size={20} />
+              <span>Localisation non disponible</span>
+              <span className="map-geo-hint">Active-la dans Réglages → Confidentialité → Services de localisation</span>
+              <button className="map-geo-retry" onClick={startGeo}>Réessayer</button>
             </div>
           </div>
         )}

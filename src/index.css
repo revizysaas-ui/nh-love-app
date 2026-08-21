@@ -1141,6 +1141,12 @@ body.map-fullscreen-active .share-toast { display: none !important; }
 .map-geo-hint {
   font-size: 12px; font-weight: 400; color: var(--muted-foreground); line-height: 1.4;
 }
+.map-geo-retry {
+  margin-top: 4px; padding: 8px 20px; border-radius: 20px; border: none;
+  background: var(--primary); color: #fff; font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: transform 0.15s;
+}
+.map-geo-retry:active { transform: scale(0.95); }
 
 .map-btn-tl, .map-btn-tr {
   position: absolute; z-index: 1000;
